@@ -1,0 +1,6 @@
+{
+  "name": "slattery/yse_cascades",
+  "description": "Support arbitrary landings in a hierarchy for nav and data passthrough",
+  "type": "drupal-custom-module",
+  "license": "GPL-2.0-or-later"
+}

@@ -1,0 +1,8 @@
+name: YSE Cascades
+type: module
+description: Support arbitrary landings in a hierarchy for nav and data passthrough.
+package: YSE Contrib
+core_version_requirement: ^9
+dependencies:
+  - drupal:help
+  - menu_item_extras:menu_item_extras

@@ -1,0 +1,276 @@
+<?php
+
+use Drupal\Core\Render\BubbleableMetadata;
+use Drupal\Core\Routing\RouteMatchInterface;
+use Drupal\Component\Utility\Html;
+
+/**
+ * Implements hook_help().
+ */
+function yse_cascades_help($route_name, RouteMatchInterface $route_match) {
+  if ($route_name == 'help.page.yse_cascades') {
+    $text = file_get_contents(__DIR__ . '/README.md');
+    if (!\Drupal::moduleHandler()->moduleExists('markdown')) {
+      return '<pre>' . $text . '</pre>';
+    }
+    else {
+      /** @var \Drupal\markdown\PluginManager\ParserManagerInterface $parser_manager */
+      $parser_manager = \Drupal::service('plugin.manager.markdown.parser');
+      $parser = $parser_manager->getDefaultParser([
+        'render_strategy' => ['type' => 'none'],
+      ]);
+      return $parser->parse($text);
+    }
+  }
+  return NULL;
+}
+
+/**
+ * Implements hook_token_info().
+ */
+function yse_cascades_token_info() {
+  //removed needs-data arg for now
+
+  $types['cascades'] = array(
+    'name' => t('cascades'),
+    'description' => t('Tokens for arbitrary landings in a hierarchy.'),
+  );
+
+  $tokens['cascades']['menuname_txt'] = array(
+    'name' => t('Menu'),
+    'description' => t('Menu machine name for cascade'),
+  );
+
+  $tokens['cascades']['menuroot_txt'] = array(
+    'name' => t('Menu root title'),
+    'description' => t('Title string from root menu item.'),
+  );
+
+  $tokens['cascades']['homenode_txt'] = array(
+    'name' => t('Menu title'),
+    'description' => t('Title string from menu item.'),
+  );
+
+  $tokens['cascades']['homenode_pid'] = array(
+    'name' => t('Menu slot'),
+    'description' => t('Menu item id string for menu block.'),
+  );
+
+  $tokens['cascades']['homenode_self'] = array(
+    'name' => t('Homenode self-id'),
+    'description' => t('True if self is a homenode'),
+  );
+
+  $tokens['cascades']['homenode_nid'] = array(
+    'name' => t('Homenode nid'),
+    'description' => t('Homenode nid'),
+  );
+
+  $tokens['cascades']['stepnode_nid'] = array(
+    'name' => t('Parent nid'),
+    'description' => t('Parent node nid based on menu'),
+  );
+
+  $tokens['cascades']['superhero_yes'] = array(
+    'name' => t('Use fixed background'),
+    'description' => t('Flag for fixed hero bg'),
+  );
+
+  $tokens['cascades']['superhero_mid'] = array(
+    'name' => t('Hero Media ID'),
+    'description' => t('Media mid for homenode hero image'),
+  );
+
+  $tokens['cascades']['superhero_txt'] = array(
+    'name' => t('Hero Media ID'),
+    'description' => t('Text for homenode supertitle'),
+  );
+
+  $tokens['current-page']['cascades'] = array(
+    'name' => t('Page cascades'),
+    'description' => t('Casacading Info for Headers etc.'),
+    'type' => 'cascades',
+  );
+
+  return array(
+    'types' => $types,
+    'tokens' => $tokens,
+  );
+}
+
+/**
+ * Implements hook_tokens().
+ */
+function yse_cascades_tokens($type, array $tokens, array $data, array $options, BubbleableMetadata $bubbleable_metadata) {
+  $bubbleable_metadata->addCacheContexts(['url.path']);
+  $token_service = \Drupal::token();
+  $replacements = [];
+  if ($type == 'current-page') {
+    $node = \Drupal::routeMatch()->getParameter('node');
+
+    if ($node && ($node instanceof NodeInterface or $node instanceof Drupal\node\Entity\Node) && in_array($node->bundle(), ['yse_sbunit_page'])) {
+      // should be config based
+      // do all the switch/lookup here
+
+      if ($cascade_node_tokens = $token_service->findWithPrefix($tokens, 'cascades')) {
+        $replacements += $token_service->generate(
+          'cascades',
+          $cascade_node_tokens,
+          ['current-page' => $node],
+          $options,
+          $bubbleable_metadata
+        );
+      }
+    }
+  }
+
+
+  if ($type == 'cascades') {
+    //menuname_txt, menuroot_txt, stepnode_nid,
+    //homenode_txt, homenode_pid, homenode_nid, homenode_self,
+    //superhero_mid, superhero_txt, superhero_yes
+
+    if ($data['current-page']) {
+
+      $node = $data['current-page'];
+
+      list(
+        $menu_name, $menu_root_title, $menu_step_nid,
+        $menu_stop_title, $menu_stop_param, $menu_stop_nid, $menu_stop_self,
+        $node_heromid, $node_titlebg, $node_fixedbg)
+        = _yse_cascades_escalate($node);
+
+      foreach ($tokens as $name => $original) {
+        switch ($name) {
+          case 'menuname_txt':
+            if ($menu_name && !empty($menu_name)) {
+              $replacements[$original] = $menu_name;
+            }
+            break;
+          case 'menuroot_txt':
+            if ($menu_root_title && !empty($menu_root_title)) {
+              $replacements[$original] = $menu_root_title;
+            }
+            break;
+          case 'stepnode_nid':
+            if ($menu_step_nid && !empty($menu_step_nid)) {
+              $replacements[$original] = $menu_step_nid;
+            }
+            break;
+          case 'homenode_txt':
+            if ($menu_stop_title && !empty($menu_stop_title)) {
+              $replacements[$original] = $menu_stop_title;
+            }
+            break;
+          case 'homenode_pid':
+            if ($menu_stop_param && !empty($menu_stop_param)) {
+              $replacements[$original] = $menu_stop_param;
+            }
+            break;
+          case 'homenode_nid':
+            if ($menu_stop_nid && !empty($menu_stop_nid)) {
+              $replacements[$original] = $menu_stop_nid;
+            }
+            break;
+          case 'homenode_self':
+            $replacements[$original] = $menu_stop_self ? true : false;
+            break;
+          case 'superhero_yes':
+            $replacements[$original] = $node_fixedbg ? true : false;
+            break;
+          case 'superhero_mid':
+            if ($node_heromid && !empty($node_heromid)) {
+              $replacements[$original] = $node_heromid;
+            }
+            break;
+          case 'superhero_txt':
+            if ($node_titlebg && !empty($node_titlebg)) {
+              $replacements[$original] = $node_titlebg;
+            }
+            break;
+
+        }
+      }
+    }
+  }
+  return $replacements;
+}
+
+
+// add elses for current-page and paragraph assuming empty nodes.
+// look to add two deps the menu-link entity and the node entity where needed?
+
+
+
+
+
+
+function _yse_cascades_escalate($entity) {
+  $menu_name = $menu_step_nid = $menu_root_title = null;
+  $menu_stop = $menu_stop_title = $menu_stop_param = $menu_stop_nid = $menu_stop_self = null;
+  $node_heromid = $node_titlebg = null;
+  $node_fixedbg = false;
+
+  if ($entity && ($entity instanceof NodeInterface or $entity instanceof Drupal\node\Entity\Node) && (in_array($entity->bundle(), ['yse_sbunit_page'])) && \Drupal::moduleHandler()->moduleExists('menu_item_extras')) {
+    $menu_link_manager = \Drupal::service('plugin.manager.menu.link');
+    $entity_id = $entity->id();
+    $menu_links = $entity_id ? $menu_link_manager->loadLinksByRoute('entity.node.canonical', array('node' => $entity_id)) : [];
+    if (is_array($menu_links) && count($menu_links)) {
+      //some nodes may have more than one menu link, for now we only grabbing the first one.
+      $menu_link = reset($menu_links);
+      $menu_name = $menu_link->getMenuName();
+      $menusteps = $menu_link_manager->getParentIds($menu_link->getPluginId());
+
+      foreach ($menusteps as $idx => $step) {
+        $menu_link_content = $menu_link_manager->createInstance($step);
+        $menu_link_entity = \Drupal::service('menu_item_extras.menu_link_tree_handler')->getMenuLinkItemEntity($menu_link_content);
+        if (!empty($menu_link_entity)) {
+          if ($menu_link_entity->hasField('field_menu_landing')) {
+            $menu_stop = $menu_link_entity->get('field_menu_landing')->value;
+            if (!empty($menu_stop)) {
+              $menu_stop_title = $menu_link_content->getTitle();
+              $menu_stop_param = $menu_link_content->getPluginId();
+              $menu_stop_nid = $menu_link_content->getRouteParameters()['node'];
+              $menu_stop_self = ($menu_stop_nid == $entity_id) ? true : false;
+            }
+          }
+        }
+        if (($idx === 1) && empty($menu_stop)) {
+          $menu_step_nid = $menu_link_content->getRouteParameters()['node'];
+        }
+        if ($idx === array_key_last($menusteps)) {
+          $menu_root_title = $menu_link_content->getTitle();
+        }
+      }
+    }
+
+    // GRAB HERO STUFF FOR PAGE LEVEL
+    if ($entity->hasField('field_hero_component')) {
+      $superhero = null;
+      $fixedbg = false;
+
+      //GET VIEWMODE FOR PAGE LEVEL - MIGHT WANT SETTINGS FOR DEFAULTS FOR STEPDOWNS
+      $localhero = $entity->get('field_hero_component')->first();
+      $localview = $localhero ? $localhero->view() : null;
+      if (!empty($localview['#view_mode']) && (str_contains($localview['#view_mode'], 'superhero'))) {
+        $node_fixedbg = true;
+      }
+
+      //GET HERO OBJS AND GRAB ASSETS
+      if (!empty($menu_stop_nid) && $menu_stop_self == false) {
+        $super = \Drupal::entityTypeManager()->getStorage('node')->load($menu_stop_nid);
+        $superhero = $super->get('field_hero_component')->first();
+      }
+      $our_hero = $superhero ?? $localhero;
+      if (!empty($our_hero)) {
+        $image_id = $our_hero->entity->field_hero_image->entity->thumbnail->target_id;
+        $node_heromid = $image_id;
+        $node_titlebg = $our_hero->entity->field_hero_title->value;
+      }
+    }
+  }
+
+  return [$menu_name, $menu_root_title, $menu_step_nid,
+    $menu_stop_title, $menu_stop_param, $menu_stop_nid, $menu_stop_self,
+    $node_heromid, $node_titlebg, $node_fixedbg];
+}
