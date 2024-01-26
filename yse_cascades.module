@@ -3,6 +3,8 @@
 use Drupal\Core\Render\BubbleableMetadata;
 use Drupal\Core\Routing\RouteMatchInterface;
 use Drupal\Component\Utility\Html;
+use Drupal\menu_link_content\MenuLinkContentInterface as MenuLoader;
+use Drupal\node\NodeInterface as NodeLoader;
 
 /**
  * Implements hook_help().
@@ -81,6 +83,11 @@ function yse_cascades_token_info() {
     'description' => t('Media mid for homenode hero image'),
   );
 
+  $tokens['cascades']['superhero_var'] = array(
+    'name' => t('Hero CSS Var'),
+    'description' => t('Overlay Settings for hero'),
+  );
+
   $tokens['cascades']['superhero_txt'] = array(
     'name' => t('Hero Media ID'),
     'description' => t('Text for homenode supertitle'),
@@ -128,7 +135,7 @@ function yse_cascades_tokens($type, array $tokens, array $data, array $options, 
   if ($type == 'cascades') {
     //menuname_txt, menuroot_txt, stepnode_nid,
     //homenode_txt, homenode_pid, homenode_nid, homenode_self,
-    //superhero_mid, superhero_txt, superhero_yes
+    //superhero_mid, superhero_var, superhero_txt, superhero_yes
 
     if ($data['current-page']) {
 
@@ -136,10 +143,30 @@ function yse_cascades_tokens($type, array $tokens, array $data, array $options, 
 
       list(
         $menu_name, $menu_root_title, $menu_step_nid,
-        $menu_stop_title, $menu_stop_param, $menu_stop_nid, $menu_stop_self,
-        $node_heromid, $node_titlebg, $node_fixedbg)
+        $menu_stop_title, $menu_stop_param, $menu_stop_nid, $menu_stop_self, $menu_stop_entity,
+        $node_heromid, $node_herovar, $node_titlebg, $node_fixedbg)
         = _yse_cascades_escalate($node);
 
+
+      //Set up cache deps
+      $supernode = $localnode = $supermenu = null;
+
+      if (!empty($node->id())) {
+        /** @var \Drupal\node\NodeInterface $localnode */
+        //maybe this is automatic?
+        //$localnode = NodeLoader::load($node->id());
+      }
+      if (!empty($menu_stop_id)) {
+        /** @var \Drupal\node\NodeInterface $supernode */
+        $supernode = NodeLoader::load($menu_stop_nid);
+      }
+
+      if (!empty($menu_stop_entity)) {
+        /** @var \Drupal\menu_link_content\MenuLinkContentInterface $supermenu */
+        $supermenu = $menu_stop_entity;
+      }
+
+      //Perform replacements
       foreach ($tokens as $name => $original) {
         switch ($name) {
           case 'menuname_txt':
@@ -159,32 +186,53 @@ function yse_cascades_tokens($type, array $tokens, array $data, array $options, 
             break;
           case 'homenode_txt':
             if ($menu_stop_title && !empty($menu_stop_title)) {
+              $bubbleable_metadata->addCacheableDependency($supernode);
+              $bubbleable_metadata->addCacheableDependency($supermenu);
               $replacements[$original] = $menu_stop_title;
             }
             break;
           case 'homenode_pid':
             if ($menu_stop_param && !empty($menu_stop_param)) {
+              $bubbleable_metadata->addCacheableDependency($supernode);
+              $bubbleable_metadata->addCacheableDependency($supermenu);
               $replacements[$original] = $menu_stop_param;
             }
             break;
           case 'homenode_nid':
             if ($menu_stop_nid && !empty($menu_stop_nid)) {
+              $bubbleable_metadata->addCacheableDependency($supernode);
+              $bubbleable_metadata->addCacheableDependency($supermenu);
               $replacements[$original] = $menu_stop_nid;
             }
             break;
           case 'homenode_self':
+            if ($supernode) {
+              $bubbleable_metadata->addCacheableDependency($supernode);
+              $bubbleable_metadata->addCacheableDependency($supermenu);
+            }
             $replacements[$original] = $menu_stop_self ? true : false;
             break;
           case 'superhero_yes':
+            if ($supernode) {
+              $bubbleable_metadata->addCacheableDependency($supernode);
+            }
             $replacements[$original] = $node_fixedbg ? true : false;
             break;
           case 'superhero_mid':
             if ($node_heromid && !empty($node_heromid)) {
+              $bubbleable_metadata->addCacheableDependency($supernode);
               $replacements[$original] = $node_heromid;
+            }
+            break;
+          case 'superhero_var':
+            if ($node_herovar && !empty($node_herovar)) {
+              $bubbleable_metadata->addCacheableDependency($supernode);
+              $replacements[$original] = $node_herovar;
             }
             break;
           case 'superhero_txt':
             if ($node_titlebg && !empty($node_titlebg)) {
+              $bubbleable_metadata->addCacheableDependency($supernode);
               $replacements[$original] = $node_titlebg;
             }
             break;
@@ -207,8 +255,8 @@ function yse_cascades_tokens($type, array $tokens, array $data, array $options, 
 
 function _yse_cascades_escalate($entity) {
   $menu_name = $menu_step_nid = $menu_root_title = null;
-  $menu_stop = $menu_stop_title = $menu_stop_param = $menu_stop_nid = $menu_stop_self = null;
-  $node_heromid = $node_titlebg = null;
+  $menu_stop = $menu_stop_title = $menu_stop_param = $menu_stop_nid = $menu_stop_self = $menu_stop_entity = null;
+  $node_heromid = $node_herovar = $node_titlebg = null;
   $node_fixedbg = false;
 
   if ($entity && ($entity instanceof NodeInterface or $entity instanceof Drupal\node\Entity\Node) && (in_array($entity->bundle(), ['yse_sbunit_page'])) && \Drupal::moduleHandler()->moduleExists('menu_item_extras')) {
@@ -232,6 +280,7 @@ function _yse_cascades_escalate($entity) {
               $menu_stop_param = $menu_link_content->getPluginId();
               $menu_stop_nid = $menu_link_content->getRouteParameters()['node'];
               $menu_stop_self = ($menu_stop_nid == $entity_id) ? true : false;
+              $menu_stop_entity = $menu_link_entity;
             }
           }
         }
@@ -251,8 +300,8 @@ function _yse_cascades_escalate($entity) {
 
       //GET VIEWMODE FOR PAGE LEVEL - MIGHT WANT SETTINGS FOR DEFAULTS FOR STEPDOWNS
       $localhero = $entity->get('field_hero_component')->first();
-      $localview = $localhero ? $localhero->view() : null;
-      if (!empty($localview['#view_mode']) && (str_contains($localview['#view_mode'], 'superhero'))) {
+      $localmode = $localhero->entity->getBehaviorSetting('paragraphs_viewmode_behavior', 'view_mode');
+      if (!empty($localmode) && (str_contains($localmode, 'superhero'))) {
         $node_fixedbg = true;
       }
 
@@ -263,14 +312,28 @@ function _yse_cascades_escalate($entity) {
       }
       $our_hero = $superhero ?? $localhero;
       if (!empty($our_hero)) {
-        $image_id = $our_hero->entity->field_hero_image->entity->thumbnail->target_id;
-        $node_heromid = $image_id;
-        $node_titlebg = $our_hero->entity->field_hero_title->value;
+        if ($our_hero->entity->field_hero_image->entity) {
+          $image_id = $our_hero->entity->field_hero_image->entity->thumbnail->target_id;
+        }
+        $node_heromid = $image_id ?? null;
+        $node_titlebg = $our_hero->entity->field_hero_title->value ?? null;
+        //seems safer to get all para behavior settings and do tests ourselves.
+        $para_behaviors = $our_hero->entity->getAllBehaviorSettings();
+        $hero_viewmode = !empty($para_behaviors['paragraphs_viewmode_behavior'])
+          ? $para_behaviors['paragraphs_viewmode_behavior']['view_mode'] : null;
+        $hero_opacity = !empty($para_behaviors['style_options']['overlay_end_opacity'])
+          ? $para_behaviors['style_options']['overlay_end_opacity']['css_var'] : null;
+        $hero_position = !empty($para_behaviors['style_options']['overlay_end_position'])
+          ? $para_behaviors['style_options']['overlay_end_position']['css_var'] : null;
+        //we could also use getAllBehaviorSettings and process the array.
+        //We are lucky that opacity settings are values and not keys to a select at this stage.
+        $node_herovar = (!empty($hero_opacity) && !empty($hero_position))
+          ? "--overlay-end-opacity:{$hero_opacity}; --overlay-end-pos:{$hero_position}%;" : null;
       }
     }
   }
 
   return [$menu_name, $menu_root_title, $menu_step_nid,
-    $menu_stop_title, $menu_stop_param, $menu_stop_nid, $menu_stop_self,
-    $node_heromid, $node_titlebg, $node_fixedbg];
+    $menu_stop_title, $menu_stop_param, $menu_stop_nid, $menu_stop_self, $menu_stop_entity,
+    $node_heromid, $node_herovar, $node_titlebg, $node_fixedbg];
 }
