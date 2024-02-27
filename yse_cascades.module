@@ -1,10 +1,11 @@
 <?php
 
-use Drupal\Core\Render\BubbleableMetadata;
 use Drupal\Core\Routing\RouteMatchInterface;
-use Drupal\Component\Utility\Html;
-use Drupal\menu_link_content\MenuLinkContentInterface as MenuLoader;
-use Drupal\node\NodeInterface as NodeLoader;
+use Drupal\Core\Template\Attribute;
+
+// OMG https://environment-yale-edu.lndo.site/admin/config/search/path/settings
+// TODO decide if last segment can stay in step_parent_path
+// TODO see if I can add menu_item_extras field in node field.
 
 /**
  * Implements hook_help().
@@ -28,312 +29,182 @@ function yse_cascades_help($route_name, RouteMatchInterface $route_match) {
 }
 
 /**
- * Implements hook_token_info().
+ * Implements hook_form_FORM_ID_alter().
  */
-function yse_cascades_token_info() {
-  //removed needs-data arg for now
-
-  $types['cascades'] = array(
-    'name' => t('cascades'),
-    'description' => t('Tokens for arbitrary landings in a hierarchy.'),
-  );
-
-  $tokens['cascades']['menuname_txt'] = array(
-    'name' => t('Menu'),
-    'description' => t('Menu machine name for cascade'),
-  );
-
-  $tokens['cascades']['menuroot_txt'] = array(
-    'name' => t('Menu root title'),
-    'description' => t('Title string from root menu item.'),
-  );
-
-  $tokens['cascades']['homenode_txt'] = array(
-    'name' => t('Menu title'),
-    'description' => t('Title string from menu item.'),
-  );
-
-  $tokens['cascades']['homenode_pid'] = array(
-    'name' => t('Menu slot'),
-    'description' => t('Menu item id string for menu block.'),
-  );
-
-  $tokens['cascades']['homenode_self'] = array(
-    'name' => t('Homenode self-id'),
-    'description' => t('True if self is a homenode'),
-  );
-
-  $tokens['cascades']['homenode_nid'] = array(
-    'name' => t('Homenode nid'),
-    'description' => t('Homenode nid'),
-  );
-
-  $tokens['cascades']['stepnode_nid'] = array(
-    'name' => t('Parent nid'),
-    'description' => t('Parent node nid based on menu'),
-  );
-
-  $tokens['cascades']['superhero_yes'] = array(
-    'name' => t('Use fixed background'),
-    'description' => t('Flag for fixed hero bg'),
-  );
-
-  $tokens['cascades']['superhero_mid'] = array(
-    'name' => t('Hero Media ID'),
-    'description' => t('Media mid for homenode hero image'),
-  );
-
-  $tokens['cascades']['superhero_var'] = array(
-    'name' => t('Hero CSS Var'),
-    'description' => t('Overlay Settings for hero'),
-  );
-
-  $tokens['cascades']['superhero_txt'] = array(
-    'name' => t('Hero Media ID'),
-    'description' => t('Text for homenode supertitle'),
-  );
-
-  $tokens['current-page']['cascades'] = array(
-    'name' => t('Page cascades'),
-    'description' => t('Casacading Info for Headers etc.'),
-    'type' => 'cascades',
-  );
-
-  return array(
-    'types' => $types,
-    'tokens' => $tokens,
-  );
+function yse_cascades_form_node_yse_sbunit_page_edit_form_alter(&$form, Drupal\Core\Form\FormState $form_state, $form_id) {
+  \Drupal::service('yse_cascades.nodeform_utils')->yse_sbunit_page_form_alter($form, $form_state, $form_id);
 }
 
 /**
- * Implements hook_tokens().
+ * Implements hook_form_FORM_ID_alter().
  */
-function yse_cascades_tokens($type, array $tokens, array $data, array $options, BubbleableMetadata $bubbleable_metadata) {
-  $bubbleable_metadata->addCacheContexts(['url.path']);
-  $token_service = \Drupal::token();
-  $replacements = [];
-  if ($type == 'current-page') {
-    $node = \Drupal::routeMatch()->getParameter('node');
+function yse_cascades_form_node_yse_sbunit_page_form_alter(&$form, Drupal\Core\Form\FormState $form_state, $form_id) {
+    \Drupal::service('yse_cascades.nodeform_utils')->yse_sbunit_page_form_alter($form, $form_state, $form_id);
+}
 
-    if ($node && ($node instanceof NodeInterface or $node instanceof Drupal\node\Entity\Node) && in_array($node->bundle(), ['yse_sbunit_page'])) {
-      // should be config based
-      // do all the switch/lookup here
+/*
+ * it appears that on ajax we miss something like   // \Drupal::formBuilder()->doBuildForm()
+ * so we recreate much of that here.
+ */
 
-      if ($cascade_node_tokens = $token_service->findWithPrefix($tokens, 'cascades')) {
-        $replacements += $token_service->generate(
-          'cascades',
-          $cascade_node_tokens,
-          ['current-page' => $node],
-          $options,
-          $bubbleable_metadata
-        );
-      }
-    }
+/**
+ * Implements hook_theme_suggestions_form_element().
+ */
+function yse_cascades_theme_suggestions_form_element_alter(&$suggestions, $variables) {
+  //operate only on menu-extra elements
+  if (isset($variables['element']['#field_parents']) && count($variables['element']['#field_parents']) > 1 && $variables['element']['#field_parents'][0] == 'menu' &&  $variables['element']['#field_parents'][1] == 'extra'){
+    $suggestions[] = $variables['theme_hook_original'] . '__menu_extra';
   }
-
-
-  if ($type == 'cascades') {
-    //menuname_txt, menuroot_txt, stepnode_nid,
-    //homenode_txt, homenode_pid, homenode_nid, homenode_self,
-    //superhero_mid, superhero_var, superhero_txt, superhero_yes
-
-    if ($data['current-page']) {
-
-      $node = $data['current-page'];
-
-      list(
-        $menu_name, $menu_root_title, $menu_step_nid,
-        $menu_stop_title, $menu_stop_param, $menu_stop_nid, $menu_stop_self, $menu_stop_entity,
-        $node_heromid, $node_herovar, $node_titlebg, $node_fixedbg)
-        = _yse_cascades_escalate($node);
-
-
-      //Set up cache deps
-      $supernode = $localnode = $supermenu = null;
-
-      if (!empty($node->id())) {
-        /** @var \Drupal\node\NodeInterface $localnode */
-        //maybe this is automatic?
-        //$localnode = NodeLoader::load($node->id());
-      }
-      if (!empty($menu_stop_id)) {
-        /** @var \Drupal\node\NodeInterface $supernode */
-        $supernode = NodeLoader::load($menu_stop_nid);
-      }
-
-      if (!empty($menu_stop_entity)) {
-        /** @var \Drupal\menu_link_content\MenuLinkContentInterface $supermenu */
-        $supermenu = $menu_stop_entity;
-      }
-
-      //Perform replacements
-      foreach ($tokens as $name => $original) {
-        switch ($name) {
-          case 'menuname_txt':
-            if ($menu_name && !empty($menu_name)) {
-              $replacements[$original] = $menu_name;
-            }
-            break;
-          case 'menuroot_txt':
-            if ($menu_root_title && !empty($menu_root_title)) {
-              $replacements[$original] = $menu_root_title;
-            }
-            break;
-          case 'stepnode_nid':
-            if ($menu_step_nid && !empty($menu_step_nid)) {
-              $replacements[$original] = $menu_step_nid;
-            }
-            break;
-          case 'homenode_txt':
-            if ($menu_stop_title && !empty($menu_stop_title)) {
-              $bubbleable_metadata->addCacheableDependency($supernode);
-              $bubbleable_metadata->addCacheableDependency($supermenu);
-              $replacements[$original] = $menu_stop_title;
-            }
-            break;
-          case 'homenode_pid':
-            if ($menu_stop_param && !empty($menu_stop_param)) {
-              $bubbleable_metadata->addCacheableDependency($supernode);
-              $bubbleable_metadata->addCacheableDependency($supermenu);
-              $replacements[$original] = $menu_stop_param;
-            }
-            break;
-          case 'homenode_nid':
-            if ($menu_stop_nid && !empty($menu_stop_nid)) {
-              $bubbleable_metadata->addCacheableDependency($supernode);
-              $bubbleable_metadata->addCacheableDependency($supermenu);
-              $replacements[$original] = $menu_stop_nid;
-            }
-            break;
-          case 'homenode_self':
-            if ($supernode) {
-              $bubbleable_metadata->addCacheableDependency($supernode);
-              $bubbleable_metadata->addCacheableDependency($supermenu);
-            }
-            $replacements[$original] = $menu_stop_self ? true : false;
-            break;
-          case 'superhero_yes':
-            if ($supernode) {
-              $bubbleable_metadata->addCacheableDependency($supernode);
-            }
-            $replacements[$original] = $node_fixedbg ? true : false;
-            break;
-          case 'superhero_mid':
-            if ($node_heromid && !empty($node_heromid)) {
-              $bubbleable_metadata->addCacheableDependency($supernode);
-              $replacements[$original] = $node_heromid;
-            }
-            break;
-          case 'superhero_var':
-            if ($node_herovar && !empty($node_herovar)) {
-              $bubbleable_metadata->addCacheableDependency($supernode);
-              $replacements[$original] = $node_herovar;
-            }
-            break;
-          case 'superhero_txt':
-            if ($node_titlebg && !empty($node_titlebg)) {
-              $bubbleable_metadata->addCacheableDependency($supernode);
-              $replacements[$original] = $node_titlebg;
-            }
-            break;
-
-        }
-      }
-    }
-  }
-  return $replacements;
 }
 
 
-// add elses for current-page and paragraph assuming empty nodes.
-// look to add two deps the menu-link entity and the node entity where needed?
-
-
-
-
-
-
-function _yse_cascades_escalate($entity) {
-  $menu_name = $menu_step_nid = $menu_root_title = null;
-  $menu_stop = $menu_stop_title = $menu_stop_param = $menu_stop_nid = $menu_stop_self = $menu_stop_entity = null;
-  $node_heromid = $node_herovar = $node_titlebg = null;
-  $node_fixedbg = false;
-
-  if ($entity && ($entity instanceof NodeInterface or $entity instanceof Drupal\node\Entity\Node) && (in_array($entity->bundle(), ['yse_sbunit_page'])) && \Drupal::moduleHandler()->moduleExists('menu_item_extras')) {
-    $menu_link_manager = \Drupal::service('plugin.manager.menu.link');
-    $entity_id = $entity->id();
-    $menu_links = $entity_id ? $menu_link_manager->loadLinksByRoute('entity.node.canonical', array('node' => $entity_id)) : [];
-    if (is_array($menu_links) && count($menu_links)) {
-      //some nodes may have more than one menu link, for now we only grabbing the first one.
-      $menu_link = reset($menu_links);
-      $menu_name = $menu_link->getMenuName();
-      $menusteps = $menu_link_manager->getParentIds($menu_link->getPluginId());
-
-      foreach ($menusteps as $idx => $step) {
-        $menu_link_content = $menu_link_manager->createInstance($step);
-        $menu_link_entity = \Drupal::service('menu_item_extras.menu_link_tree_handler')->getMenuLinkItemEntity($menu_link_content);
-        if (!empty($menu_link_entity)) {
-          if ($menu_link_entity->hasField('field_menu_landing')) {
-            $menu_stop = $menu_link_entity->get('field_menu_landing')->value;
-            if (!empty($menu_stop)) {
-              $menu_stop_title = $menu_link_content->getTitle();
-              $menu_stop_param = $menu_link_content->getPluginId();
-              $menu_stop_nid = $menu_link_content->getRouteParameters()['node'];
-              $menu_stop_self = ($menu_stop_nid == $entity_id) ? true : false;
-              $menu_stop_entity = $menu_link_entity;
-            }
-          }
-        }
-        if (($idx === 1) && empty($menu_stop)) {
-          $menu_step_nid = $menu_link_content->getRouteParameters()['node'];
-        }
-        if ($idx === array_key_last($menusteps)) {
-          $menu_root_title = $menu_link_content->getTitle();
-        }
-      }
-    }
-
-    // GRAB HERO STUFF FOR PAGE LEVEL
-    if ($entity->hasField('field_hero_component')) {
-      $superhero = null;
-      $fixedbg = false;
-
-      //GET VIEWMODE FOR PAGE LEVEL - MIGHT WANT SETTINGS FOR DEFAULTS FOR STEPDOWNS
-      $localhero = $entity->get('field_hero_component')->first();
-      $localmode = $localhero->entity->getBehaviorSetting('paragraphs_viewmode_behavior', 'view_mode');
-      if (!empty($localmode) && (str_contains($localmode, 'superhero'))) {
-        $node_fixedbg = true;
-      }
-
-      //GET HERO OBJS AND GRAB ASSETS
-      if (!empty($menu_stop_nid) && $menu_stop_self == false) {
-        $super = \Drupal::entityTypeManager()->getStorage('node')->load($menu_stop_nid);
-        $superhero = $super->get('field_hero_component')->first();
-      }
-      $our_hero = $superhero ?? $localhero;
-      if (!empty($our_hero)) {
-        if ($our_hero->entity->field_hero_image->entity) {
-          $image_id = $our_hero->entity->field_hero_image->entity->thumbnail->target_id;
-        }
-        $node_heromid = $image_id ?? null;
-        $node_titlebg = $our_hero->entity->field_hero_title->value ?? null;
-        //seems safer to get all para behavior settings and do tests ourselves.
-        $para_behaviors = $our_hero->entity->getAllBehaviorSettings();
-        $hero_viewmode = !empty($para_behaviors['paragraphs_viewmode_behavior'])
-          ? $para_behaviors['paragraphs_viewmode_behavior']['view_mode'] : null;
-        $hero_opacity = !empty($para_behaviors['style_options']['overlay_end_opacity'])
-          ? $para_behaviors['style_options']['overlay_end_opacity']['css_var'] : null;
-        $hero_position = !empty($para_behaviors['style_options']['overlay_end_position'])
-          ? $para_behaviors['style_options']['overlay_end_position']['css_var'] : null;
-        //we could also use getAllBehaviorSettings and process the array.
-        //We are lucky that opacity settings are values and not keys to a select at this stage.
-        $node_herovar = (!empty($hero_opacity) && !empty($hero_position))
-          ? "--overlay-end-opacity:{$hero_opacity}; --overlay-end-pos:{$hero_position}%;" : null;
-      }
-    }
+function yse_cascades_theme_suggestions_input_alter(&$suggestions, $variables) {
+  //operate only on menu-extra elements
+  if (isset($variables['element']['#field_parents']) && count($variables['element']['#field_parents']) > 1 && $variables['element']['#field_parents'][0] == 'menu' &&  $variables['element']['#field_parents'][1] == 'extra'){
+    $suggestions[] = 'field__' . $variables['element']['#type'] . '__menu_extra';
   }
 
-  return [$menu_name, $menu_root_title, $menu_step_nid,
-    $menu_stop_title, $menu_stop_param, $menu_stop_nid, $menu_stop_self, $menu_stop_entity,
-    $node_heromid, $node_herovar, $node_titlebg, $node_fixedbg];
+}
+
+function yse_cascades_theme_suggestions_select_alter(&$suggestions, $variables) {
+  //operate only on menu-extra elements
+  if (isset($variables['element']['#field_parents'])  && count($variables['element']['#field_parents']) > 1 && $variables['element']['#field_parents'][0] == 'menu' &&  $variables['element']['#field_parents'][1] == 'extra'){
+    $suggestions[] = 'field__' . $variables['element']['#type'] . '__menu_extra';
+  }
+}
+
+function yse_cascades_preprocess_field_multiple_value_form(&$variables) {
+  if (isset($variables['element']['#field_parents'])  && count($variables['element']['#field_parents']) > 1 && $variables['element']['#field_parents'][0] == 'menu' &&  $variables['element']['#field_parents'][1] == 'extra'){
+
+
+    $index        = $variables['element']['#max_delta'];
+    $parentstring = str_replace('_', '-', implode('-', $variables['element']['#parents'])) ?? null;
+    $desc = $variables['element'][0]['#description'] ?? null;
+    $type = $variables['element'][0]['value']['#type'] ?? null;
+
+    if (!isset($variables['third_party_settings'])){
+      $variables['third_party_settings'] = [];
+    }
+
+    $variables['third_party_settings']['parentstring']  = $parentstring;
+    $variables['third_party_settings']['fieldtype']     = $variables['element'][0]['value']['#type'] ?? null;
+
+    if (isset($variables['element'][0]['#description'])){
+      $description_attributes['id'] = 'edit-' . $parentstring . '-0-value';
+      $variables['description']['attributes'] = new Attribute($description_attributes);
+      $variables['description']['content'] = $variables['element'][0]['#description'];
+    }
+
+  }
+}
+
+function yse_cascades_preprocess_form_element(&$variables) {
+  //operate only on menu-extra elements
+  if (isset($variables['element']['#field_parents'])  && count($variables['element']['#field_parents']) > 1 && $variables['element']['#field_parents'][0] == 'menu' &&  $variables['element']['#field_parents'][1] == 'extra'){
+
+    if (in_array($variables['element']['#type'], ['checkbox','textfield','select'], TRUE)) {
+      if (empty($variables['element']['#name']) && !empty($variables['element']['#attributes']['id']) ){
+        $variables['element']['#name'] = $variables['element']['#attributes']['id'];
+      }
+      if (isset($variables['element']['#field_prefix']) ){
+        $variables['prefix'] = $variables['element']['#field_prefix'];
+        $variables['attributes']['class'][] = 'field_prefix__label__menu_extra';
+      }
+    }
+
+    //remove malformed classes
+    if (isset($variables['attributes']['class'])){
+      $variables['attributes']['class'] = array_values(array_filter($variables['attributes']['class'], fn ($m) => !in_array($m, ['js-form-item-','form-item-'])));
+    }
+
+    if (isset($variables['element']['#attributes']['id']) ){
+      $variables['attributes']['class'][] = 'js-form-item-' . $variables['element']['#attributes']['id'];
+      $variables['attributes']['class'][] = 'form-item-' . $variables['element']['#attributes']['id'];
+    }
+
+    if (!isset($variables['type']) && isset($variables['element']['#type'])){
+      $variables['type'] = $variables['element']['#type'];
+    }
+
+    if (!isset($variables['name']) && isset($variables['element']['#name'])){
+      $variables['name'] = $variables['element']['#name'];
+    }
+
+    $description_id = $variables['element']['#attributes']['id'] . '--description';
+    $description_attributes['id'] = $description_id;
+    $variables['description_display'] = $variables['element']['#description_display'];
+    if ($variables['element']['#description_display'] === 'invisible') {
+      $description_attributes['class'][] = 'visually-hidden';
+    }
+    $description_attributes['data-drupal-field-elements'] = 'description';
+    $variables['description']['attributes'] = new Attribute($description_attributes);
+    $variables['description']['content'] = $variables['element']['#description'];
+
+    // Add the description's id to the fieldset aria attributes.
+    $variables['attributes']['aria-describedby'] = $description_id;
+
+  }
+}
+
+function yse_cascades_preprocess_form_element_label(&$variables) {
+  //operate only on menu-extra elements
+  if (isset($variables['element']['#id']) && (strpos($variables['element']['#id'], 'edit-menu-extra') === 0)){
+    if (empty($variables['element']['#for']) && !empty($variables['element']['#id']) ){
+      $variables['attributes']['for'] = $variables['element']['#id'];
+    }
+    if (isset($variables['element']['#for']) ){
+      $variables['attributes']['for'] = $variables['element']['#for'];
+    }
+  }
+}
+
+function yse_cascades_preprocess_input(&$variables) {
+  //operate only on menu-extra elements
+  if (isset($variables['element']['#field_parents'])  && count($variables['element']['#field_parents']) > 1 && $variables['element']['#field_parents'][0] == 'menu' &&  $variables['element']['#field_parents'][1] == 'extra'){
+    if (in_array($variables['element']['#type'], ['checkbox','textfield'], TRUE)) {
+      $variables['attributes']['class'][] = 'input' . '__' . $variables['element']['#type'] . '__menu_extra';
+    }
+  }
+}
+
+function yse_cascades_preprocess_select(&$variables) {
+  //operate only on menu-extra elements
+  if (isset($variables['element']['#field_parents'])  && count($variables['element']['#field_parents']) > 1 && $variables['element']['#field_parents'][0] == 'menu' &&  $variables['element']['#field_parents'][1] == 'extra'){
+      $variables['attributes']['class'][] = 'select__menu_extra';
+  }
+}
+
+function yse_cascades_preprocess_textarea(&$variables) {
+  //operate only on menu-extra elements
+  if (isset($variables['element']['#field_parents'])  && count($variables['element']['#field_parents']) > 1 && $variables['element']['#field_parents'][0] == 'menu' &&  $variables['element']['#field_parents'][1] == 'extra'){
+      $variables['attributes']['class'][] = 'textarea__menu_extra';
+  }
+}
+
+
+function yse_cascades_preprocess_container(&$variables) {
+
+  if (!isset($variables['element']['#attributes'])){
+     $variables['element'] += ['#attributes' => []];
+  }
+  //operate only on menu-extra elements
+  if (isset($variables['element']['#parents'])  && count($variables['element']['#parents']) > 1 && $variables['element']['#parents'][0] == 'menu' &&  $variables['element']['#parents'][1] == 'extra'){
+    $variables['attributes']['class'][] = 'container__menu_extra';
+    $variables['attributes']['class'][] = 'js-form-wrapper';
+    $variables['attributes']['class'][] = 'form-wrapper';
+    // Assign an html ID.
+    if (!isset($variables['element']['#attributes']['id'])) {
+      if (isset($variables['element']['#id'])){
+        $variables['attributes']['id'] = $variables['element']['#id'];
+        $variables['attributes']['data-drupal-selector'] = $variables['element']['#id'];
+      }
+      elseif (isset($variables['element']['#parents'])){
+        $parentstr = 'edit-' . str_replace('_', '-', implode('-', $variables['element']['#parents']));
+        $variables['attributes']['id'] = $variables['element']['#id'] = $parentstr;
+        $variables['attributes']['data-drupal-selector'] = $parentstr;
+      }
+    }
+    $variables['has_parent'] = TRUE;
+  }
+
 }
