@@ -408,16 +408,26 @@ function _yse_cascades_escalate($entity) {
         $node_titlebg = $our_hero->entity->field_hero_title->value ?? NULL;
         //seems safer to get all para behavior settings and do tests ourselves.
         $para_behaviors = $our_hero->entity->getAllBehaviorSettings();
+
+        if (\Drupal::moduleHandler()->moduleExists('style_options')) {
+          $behavior_config = \Drupal::service('style_options.discovery')->getDefinitions()['options'];
+        }
+        // get hero viewmode
         $hero_viewmode = !empty($para_behaviors['paragraphs_viewmode_behavior'])
           ? $para_behaviors['paragraphs_viewmode_behavior']['view_mode'] : NULL;
-        $hero_opacity = !empty($para_behaviors['style_options']['overlay_end_opacity'])
-          ? $para_behaviors['style_options']['overlay_end_opacity']['css_var'] : NULL;
-        $hero_position = !empty($para_behaviors['style_options']['overlay_end_position'])
-          ? $para_behaviors['style_options']['overlay_end_position']['css_var'] : NULL;
-        //we could also use getAllBehaviorSettings and process the array.
-        //We are lucky that opacity settings are values and not keys to a select at this stage.
-        $node_herovar = (!empty($hero_opacity) && !empty($hero_position))
-          ? "--overlay-end-opacity:{$hero_opacity}; --overlay-end-pos:{$hero_position}%;" : NULL;
+        $node_herovars = [];
+        if (!empty($para_behaviors) && !empty($behavior_config)){
+          // TODO get hero classes
+          foreach (array_keys($para_behaviors['style_options']) as $b){
+            if(!empty($para_behaviors['style_options'][$b]['css_var'])){
+              $v = _yse_process_behavior($b, $para_behaviors, $behavior_config);
+              if (!empty($v)){
+                $node_herovars[] = $v;
+              }
+            }
+          }
+        }
+        $node_herovar = !empty($node_herovars) ? implode(' ', $node_herovars) : NULL;
       }
     }
   }
@@ -427,6 +437,18 @@ function _yse_cascades_escalate($entity) {
     $node_heromid, $node_herovar, $node_titlebg, $node_fixedbg];
 }
 
+function _yse_process_behavior($behavior, $para_behaviors, $behavior_config){
+  //take into account plugin, index lookups and formatting
+  //did empty check above
+  $input = $para_behaviors['style_options'][$behavior]['css_var'];
+  //our conventions call selects 'options' and numbers/text have 'params'
+  $raw  = isset($behavior_config[$behavior]['options']) ? $behavior_config[$behavior]['options'][$input]['value'] : $input;
+  $value = isset($behavior_config[$behavior]['format'])  ? sprintf($behavior_config[$behavior]['format'], $raw) : $raw;
+  //check plugin for output, could evolve into a switch
+  //our conventions put a 'css_var' key with the under/dash tr done, css_classes are just output as string
+  $output = $behavior_config[$behavior]['plugin'] == 'yse_css_variable' ? "--{$behavior_config[$behavior]['css_var']}:{$value};" : $value;
+  return $output;
+}
 
 function _yse_climb_steppath($menusteps, $menu_stop_param = NULL, $options = []) {
   $step_parents = [];
