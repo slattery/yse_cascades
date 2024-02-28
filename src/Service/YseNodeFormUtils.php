@@ -104,7 +104,7 @@ class YseNodeFormUtils {
     }
     static::_create_extra_wrapper($form, $form_state, $form_id);
     if ($link = static::_get_saved_menulinkcontent_instance($form_state)) {
-      $form_display = EntityFormDisplay::load('menu_link_content.' . $link->getMenuName() . '.default');
+      $form_display = EntityFormDisplay::load('menu_link_content.' . $link->getMenuName() . '.nodeform');
       if ($form_display && $form_display instanceof EntityFormDisplay) {
         $form_display->buildForm($link, $form['menu']['link']['extra'], $form_state);
 
@@ -172,7 +172,7 @@ class YseNodeFormUtils {
   public function _save_menu_link_fields(array $form, FormStateInterface $form_state, $form_id = NULL) {
     if ($link = static::_get_saved_menulinkcontent_instance($form_state)) {
       if ($link && $link->getUrlObject()->getRouteName()) {
-        $form_display = EntityFormDisplay::load('menu_link_content.' . $link->getMenuName() . '.default');
+        $form_display = EntityFormDisplay::load('menu_link_content.' . $link->getMenuName() . '.nodeform');
         //Do not process if parent_menu is not handled by menu_item_extras
         if ($form_display && $form_display instanceof EntityFormDisplay) {
           $form_display->extractFormValues($link, $form['menu']['link']['extra'], $form_state);

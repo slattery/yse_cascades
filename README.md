@@ -14,3 +14,5 @@ Please not that in order to use a new token in pathauto, you must go to
 ## Nodeform Support
 
 This module has a Service which alters the node edit and add forms.  Please check for current hardcoded type/bundle status.   Menu Link Content Extra fields and viewmode should be accessible for Extras enabled menus from the node forms.
+
+Please use the 'nodeform' form mode (found in install dir) for your menus until we support this in config.
