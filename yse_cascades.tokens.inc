@@ -441,7 +441,7 @@ function _yse_cascades_escalate($entity) {
                 if (strpos($b, 'overlay_menu') !== 0 ){
                   $node_herovars[] = $v;
                 }
-                if ($b == 'overlay_rgb' || strpos($b, 'overlay_menu') == 0 ){
+                if ($b == 'overlay_rgb' || strpos($b, 'overlay_menu') === 0 ){
                   $node_menuvars[] = $v;
                 }
               }
