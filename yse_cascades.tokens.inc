@@ -75,9 +75,14 @@ function yse_cascades_token_info() {
     'description' => t('Media mid for homenode hero image'),
   );
 
-  $tokens['cascades']['superhero_var'] = array(
-    'name' => t('Hero CSS Var'),
+  $tokens['cascades']['superhero_herovar'] = array(
+    'name' => t('Hero CSS Vars'),
     'description' => t('Overlay Settings for hero'),
+  );
+
+  $tokens['cascades']['superhero_menuvar'] = array(
+    'name' => t('Hero CSS Vars'),
+    'description' => t('Overlay Settings for menu'),
   );
 
   $tokens['cascades']['superhero_txt'] = array(
@@ -191,7 +196,7 @@ function yse_cascades_tokens($type, array $tokens, array $data, array $options, 
   if ($type == 'cascades') {
     //menuname_txt, menuroot_txt, step_parents,
     //homenode_txt, homenode_pid, homenode_nid, homenode_self,
-    //superhero_mid, superhero_var, superhero_txt, superhero_yes
+    //superhero_mid, superhero_herovar, superhero_menuvar, superhero_txt, superhero_yes
 
     if ($data['node']) { //was current-page
 
@@ -200,7 +205,7 @@ function yse_cascades_tokens($type, array $tokens, array $data, array $options, 
       list(
         $menu_name, $menu_root_title, $menu_step_path,
         $menu_stop_title, $menu_stop_param, $menu_stop_nid, $menu_stop_self, $menu_stop_entity,
-        $node_heromid, $node_herovar, $node_titlebg, $node_fixedbg)
+        $node_heromid, $node_herovar, $node_menuvar, $node_titlebg, $node_fixedbg)
         = _yse_cascades_escalate($node);
 
       //Set up cache deps
@@ -216,6 +221,9 @@ function yse_cascades_tokens($type, array $tokens, array $data, array $options, 
         $supernode = NodeLoader::load($menu_stop_nid);
       }
 
+      //I would break this out as another token and leave path alone
+      //but since we can't just harness join-path I don't see how we could
+      //blend the path to matter much, so we'll package it in for now.
       if (!empty($menu_stop_entity)) {
         /** @var \Drupal\menu_link_content\MenuLinkContentInterface $supermenu */
         $supermenu = $menu_stop_entity;
@@ -223,7 +231,9 @@ function yse_cascades_tokens($type, array $tokens, array $data, array $options, 
           $superstub = $supermenu->get('field_path_prefix')->value;
           $superpath = \Drupal::service('pathauto.alias_cleaner')->cleanString($menu_stop_title, $options);
           $menu_stop_pathpart = $superstub ?? $superpath;
+          $menu_step_path = $menu_stop_pathpart . '/' . $menu_step_path;
         }
+
       }
 
       //Perform replacements
@@ -284,10 +294,16 @@ function yse_cascades_tokens($type, array $tokens, array $data, array $options, 
               $replacements[$original] = $node_heromid;
             }
             break;
-          case 'superhero_var':
+          case 'superhero_herovar':
             if ($node_herovar && !empty($node_herovar)) {
               $bubbleable_metadata->addCacheableDependency($supernode);
               $replacements[$original] = $node_herovar;
+            }
+            break;
+          case 'superhero_menuvar':
+            if ($node_menuvar && !empty($node_menuvar)) {
+              $bubbleable_metadata->addCacheableDependency($supernode);
+              $replacements[$original] = $node_menuvar;
             }
             break;
           case 'superhero_txt':
@@ -347,7 +363,7 @@ function yse_cascades_tokens($type, array $tokens, array $data, array $options, 
 function _yse_cascades_escalate($entity) {
   $menu_name = $menu_step_path = $menu_root_title = NULL;
   $menu_stop = $menu_stop_title = $menu_stop_param = $menu_stop_nid = $menu_stop_self = $menu_stop_entity = NULL;
-  $node_heromid = $node_herovar = $node_titlebg = NULL;
+  $node_heromid = $node_herovar = $node_menuvar = $node_titlebg = NULL;
   $node_fixedbg = FALSE;
 
   if ($entity && ($entity instanceof NodeInterface or $entity instanceof Drupal\node\Entity\Node) && (in_array($entity->bundle(), ['yse_sbunit_page'])) && \Drupal::moduleHandler()->moduleExists('menu_item_extras')) {
@@ -415,26 +431,32 @@ function _yse_cascades_escalate($entity) {
         // get hero viewmode
         $hero_viewmode = !empty($para_behaviors['paragraphs_viewmode_behavior'])
           ? $para_behaviors['paragraphs_viewmode_behavior']['view_mode'] : NULL;
-        $node_herovars = [];
+        $node_herovars = $node_herovars = [];
         if (!empty($para_behaviors) && !empty($behavior_config)){
           // TODO get hero classes
           foreach (array_keys($para_behaviors['style_options']) as $b){
             if(!empty($para_behaviors['style_options'][$b]['css_var'])){
               $v = _yse_process_behavior($b, $para_behaviors, $behavior_config);
               if (!empty($v)){
-                $node_herovars[] = $v;
+                if (strpos($b, 'overlay_menu') !== 0 ){
+                  $node_herovars[] = $v;
+                }
+                if ($b == 'overlay_rgb' || strpos($b, 'overlay_menu') == 0 ){
+                  $node_menuvars[] = $v;
+                }
               }
             }
           }
         }
         $node_herovar = !empty($node_herovars) ? implode(' ', $node_herovars) : NULL;
+        $node_menuvar = !empty($node_menuvars) ? implode(' ', $node_menuvars) : NULL;
       }
     }
   }
 
   return [$menu_name, $menu_root_title, $menu_step_path,
     $menu_stop_title, $menu_stop_param, $menu_stop_nid, $menu_stop_self, $menu_stop_entity,
-    $node_heromid, $node_herovar, $node_titlebg, $node_fixedbg];
+    $node_heromid, $node_herovar, $node_menuvar, $node_titlebg, $node_fixedbg];
 }
 
 function _yse_process_behavior($behavior, $para_behaviors, $behavior_config){
