@@ -229,9 +229,12 @@ function yse_cascades_tokens($type, array $tokens, array $data, array $options, 
         $supermenu = $menu_stop_entity;
         if ($supermenu->hasField('field_path_prefix')) {
           $superstub = $supermenu->get('field_path_prefix')->value;
-          $superpath = \Drupal::service('pathauto.alias_cleaner')->cleanString($menu_stop_title, $options);
-          $menu_stop_pathpart = $superstub ?? $superpath;
-          $menu_step_path = $menu_stop_pathpart . '/' . $menu_step_path;
+          if (!empty($superstub)) {
+            $superpath = \Drupal::service('pathauto.alias_cleaner')->cleanString($superstub, $options);
+          }
+          if (!empty($superpath)) {
+            $menu_step_path = $superpath . '/' . $menu_step_path;
+          }
         }
 
       }
@@ -435,7 +438,8 @@ function _yse_cascades_escalate($entity) {
         if (!empty($para_behaviors) && !empty($behavior_config)){
           // TODO get hero classes
           foreach (array_keys($para_behaviors['style_options']) as $b){
-            if(!empty($para_behaviors['style_options'][$b]['css_var'])){
+            //check entity and site structures for older behavior data stored but no longer supported
+            if(!empty($para_behaviors['style_options'][$b]['css_var']) and !empty($behavior_config[$b])){
               $v = _yse_process_behavior($b, $para_behaviors, $behavior_config);
               if (!empty($v)){
                 if (strpos($b, 'overlay_menu') !== 0 ){
