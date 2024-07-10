@@ -374,31 +374,31 @@ function _yse_cascades_escalate($entity) {
     $entity_id = $entity->id();
     $menu_links = $entity_id ? $menu_link_manager->loadLinksByRoute('entity.node.canonical', array('node' => $entity_id)) : [];
     if (is_array($menu_links) && count($menu_links)) {
-      //some nodes may have more than one menu link, for now we only grabbing the first one.
-      $menu_link = reset($menu_links);
-      $menu_name = $menu_link->getMenuName();
-      $menusteps = $menu_link_manager->getParentIds($menu_link->getPluginId());
+      foreach($menu_links as $menu_link) {
+        $menu_name = $menu_link->getMenuName();
+        $menusteps = $menu_link_manager->getParentIds($menu_link->getPluginId());
 
-      foreach ($menusteps as $step) {
-        $menu_link_content = $menu_link_manager->createInstance($step);
-        $menu_link_entity = \Drupal::service('menu_item_extras.menu_link_tree_handler')->getMenuLinkItemEntity($menu_link_content);
-        if (!empty($menu_link_entity)) {
-          if ($menu_link_entity->hasField('field_menu_landing')) {
-            $menu_stop = $menu_link_entity->get('field_menu_landing')->value;
-            if (!empty($menu_stop)) {
-              $menu_stop_title = $menu_link_content->getTitle();
-              $menu_stop_param = $menu_link_content->getPluginId();
-              $menu_stop_nid = $menu_link_content->getRouteParameters()['node'];
-              $menu_stop_self = ($menu_stop_nid == $entity_id) ? TRUE : FALSE;
-              $menu_stop_entity = $menu_link_entity;
+        foreach ($menusteps as $step) {
+          $menu_link_content = $menu_link_manager->createInstance($step);
+          $menu_link_entity = \Drupal::service('menu_item_extras.menu_link_tree_handler')->getMenuLinkItemEntity($menu_link_content);
+          if (!empty($menu_link_entity)) {
+            if ($menu_link_entity->hasField('field_menu_landing')) {
+              $menu_stop = $menu_link_entity->get('field_menu_landing')->value;
+              if (!empty($menu_stop)) {
+                $menu_stop_title = $menu_link_content->getTitle();
+                $menu_stop_param = $menu_link_content->getPluginId();
+                $menu_stop_nid = $menu_link_content->getRouteParameters()['node'];
+                $menu_stop_self = ($menu_stop_nid == $entity_id) ? TRUE : FALSE;
+                $menu_stop_entity = $menu_link_entity;
+              }
             }
           }
+          if ($step === array_key_last($menusteps)) {
+            $menu_root_title = $menu_link_content->getTitle();
+          }
         }
-        if ($step === array_key_last($menusteps)) {
-          $menu_root_title = $menu_link_content->getTitle();
-        }
+        $menu_step_path = _yse_climb_steppath($menusteps, $menu_stop_param);
       }
-      $menu_step_path = _yse_climb_steppath($menusteps, $menu_stop_param);
     }
 
     // GRAB HERO STUFF FOR PAGE LEVEL
