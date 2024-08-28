@@ -1,11 +1,18 @@
 <?php
 
+use Drupal\Core\Entity\ContentEntityForm;
+use Drupal\Core\Entity\EntityInterface;
+use Drupal\Core\Field\BaseFieldDefinition;
+use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Routing\RouteMatchInterface;
 use Drupal\Core\Template\Attribute;
-
-// OMG https://environment-yale-edu.lndo.site/admin/config/search/path/settings
-// TODO decide if last segment can stay in step_parent_path
-// TODO see if I can add menu_item_extras field in node field.
+use Drupal\node\NodeInterface;
+use Drupal\node\NodeTypeInterface;
+use Drupal\menu_item_extras\Entity\MenuItemExtrasMenuLinkContent;
+use Drupal\menu_item_extras\Utility\Utility as ExtraUtils;
+use Drupal\menu_link_content\MenuLinkContentInterface;
+use Drupal\menu_link_content\Entity\MenuLinkContent as MenuLinkContentBase;
+use Drupal\system\Entity\Menu;
 
 /**
  * Implements hook_help().
@@ -29,17 +36,17 @@ function yse_cascades_help($route_name, RouteMatchInterface $route_match) {
 }
 
 /**
- * Implements hook_form_FORM_ID_alter().
+ * Implements hook_form_FORM_ID_alter()
  */
-function yse_cascades_form_node_yse_sbunit_page_edit_form_alter(&$form, Drupal\Core\Form\FormState $form_state, $form_id) {
-  \Drupal::service('yse_cascades.nodeform_utils')->yse_sbunit_page_form_alter($form, $form_state, $form_id);
+function yse_cascades_form_node_edit_form_alter(&$form, Drupal\Core\Form\FormState $form_state, $form_id) {
+  \Drupal::service('yse_cascades.nodeform_utils')->form_node_form_alter($form, $form_state, $form_id);
 }
 
 /**
- * Implements hook_form_FORM_ID_alter().
+ * Implements hook_form_FORM_ID_alter()
  */
-function yse_cascades_form_node_yse_sbunit_page_form_alter(&$form, Drupal\Core\Form\FormState $form_state, $form_id) {
-    \Drupal::service('yse_cascades.nodeform_utils')->yse_sbunit_page_form_alter($form, $form_state, $form_id);
+function yse_cascades_form_node_form_alter(&$form, Drupal\Core\Form\FormState $form_state, $form_id) {
+    \Drupal::service('yse_cascades.nodeform_utils')->form_node_form_alter($form, $form_state, $form_id);
 }
 
 /*
@@ -206,5 +213,109 @@ function yse_cascades_preprocess_container(&$variables) {
     }
     $variables['has_parent'] = TRUE;
   }
-
 }
+
+
+/**
+ * Implements hook_entity_base_field_info().
+ *
+ * Adds a view mode field for later using it per menu item and manage render
+ * based on the view mode.
+ * EntityTypeInterface
+ * @see hook_entity_base_field_info()x
+ */
+
+function yse_cascades_entity_base_field_info($entity_type) {
+  // every hook is being loaded with Drupal\Core\Entity\ContentEntityType
+  // I have no idea why
+
+  $c = get_class($entity_type);
+  $i = $entity_type->get('id');
+  if ($i == 'menu_link_content' ){
+    if ($c == 'Drupal\Core\Entity\ContentEntityType') {
+      //will drupal notice?
+      $entity_type = \Drupal::service('entity_type.manager')->getDefinition($i);
+    }
+    $fields = [];
+    $fields['primary'] = \Drupal::service('yse_cascades.field_utils')->getPrimaryFieldDefinition();
+    return $fields;
+  }
+}
+
+
+/**
+ * Implements hook_ENTITY_TYPE_presave().
+ */
+function yse_cascades_menu_link_content_presave(EntityInterface $entity) {
+  /** @var \Drupal\menu_link_content\MenuLinkContentInterface $entity */
+  if ($entity->hasField('primary')){
+
+      $u   = $entity->getUrlObject();
+      $p = ($u && $u->isRouted()) ? $u->getRouteParameters() : null;
+      $nid = (isset($p) && !empty($p['node'])) ? $p['node'] : null;
+
+      if (!empty($nid)){
+        $checkprimary = \Drupal::entityQuery('menu_link_content')
+        ->accessCheck(FALSE)
+        ->condition('link.uri', 'entity:node/' . $nid)
+        ->condition('primary', 1);
+
+        if (!empty($entity->id())){
+          $checkprimary->condition('id', $entity->id(), '<>');
+        }
+        $positives = $checkprimary->execute();
+        $tally = count($positives);
+      }
+
+      if (isset($tally) && $tally === 0){
+        $entity->set('primary', 1);
+      }
+      elseif ( $entity->{'primary'}->isEmpty || $entity->{'primary'}->getString() == '0' ) {
+        //probably redundant to call set
+          $entity->set('primary', FALSE);
+      }
+      elseif ( isset($tally) && $tally > 0 && $entity->{'primary'}->getString() == '1' ) {
+        $links = MenuLinkContentBase::loadMultiple($positives);
+        foreach ($links as $link){
+          //double checking bc the query shouldn't allow this
+          if ($link->id() != $entity->id()){
+          $entity->set('primary', FALSE);
+            $link->save();
+          }
+          //probably redundant to call set
+          $entity->set('primary', 1);
+        }
+      }
+    }
+  }
+
+/**
+ * Implements hook_entity_extra_field_info().
+ * Puts our source counter in the form config pages
+ */
+function yse_cascades_entity_extra_field_info() {
+  $extra = \Drupal::service('yse_cascades.field_utils')->get_entity_extra_field_info();
+  return $extra;
+}
+
+/**
+ * Implements hook_node_form_alter().
+ */
+function yse_cascades_form_alter(&$form, FormStateInterface $form_state, $form_id) {
+  //Can this work with the passed formref?
+  \Drupal::service('yse_cascades.field_utils')->node_form_alter($form, $form_state, $form_id);
+}
+
+/**
+ * Implements hook_module_implements_alter().
+ */
+function yse_cascades_module_implements_alter(&$implementations, $hook) {
+  if ($hook == 'form_node_form_alter' || $hook == 'form_node_edit_form_alter'
+  || $hook == 'entity_base_field_info') {
+    $group = $implementations['yse_cascades'];
+    unset($implementations['yse_cascades']);
+    $implementations['yse_cascades'] = $group;
+  }
+}
+
+

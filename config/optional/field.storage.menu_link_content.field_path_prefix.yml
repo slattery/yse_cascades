@@ -1,0 +1,21 @@
+uuid: e2620bcf-7af5-4953-85ed-85cfe810bb85
+langcode: en
+status: true
+dependencies:
+  module:
+    - menu_link_content
+id: menu_link_content.field_path_prefix
+field_name: field_path_prefix
+entity_type: menu_link_content
+type: string
+settings:
+  max_length: 255
+  case_sensitive: false
+  is_ascii: false
+module: core
+locked: false
+cardinality: 1
+translatable: true
+indexes: {  }
+persist_with_no_fields: false
+custom_storage: false

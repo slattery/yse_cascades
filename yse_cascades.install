@@ -1,0 +1,24 @@
+<?php
+
+/**
+ * Implements hook_install().
+ */
+function yse_cascades_install() {
+  if (\Drupal::isConfigSyncing()) {
+    return;
+  }
+
+  if (\Drupal::moduleHandler()->moduleExists('menu_item_extras')) {
+    \Drupal::service('yse_cascades.field_utils')->installMenuLinkContentAddPrimaryField();
+    \Drupal::service('yse_cascades.field_utils')->updateMenuLinkContentAddPrimaryField();
+  }
+}
+
+
+function yse_cascades_update_8001() {
+  if (\Drupal::moduleHandler()->moduleExists('menu_item_extras')) {
+    \Drupal::messenger()->addMessage(t('no func yet for param %p', ['%p' => 'upup']));
+    \Drupal::service('yse_cascades.field_utils')->installMenuLinkContentAddPrimaryField();
+    \Drupal::service('yse_cascades.field_utils')->updateMenuLinkContentAddPrimaryField();
+  }
+}

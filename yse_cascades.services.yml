@@ -1,3 +1,29 @@
 services:
   yse_cascades.nodeform_utils:
-    class: Drupal\yse_cascades\Service\YseNodeFormUtils
+    class: Drupal\yse_cascades\Service\NodeFormUtils
+    arguments:
+      - '@menu.parent_form_selector'
+      - '@entity_type.manager'
+      - '@entity_field.manager'
+      - '@tempstore.private'
+      - '@date.formatter'
+      - '@entity.repository'
+  yse_cascades.tree_utils:
+    class: Drupal\yse_cascades\Service\TreeUtils
+    arguments:
+      - '@entity_type.manager'
+      - '@entity_field.manager'
+      - '@plugin.manager.menu.link'
+      - '@menu_item_extras.menu_link_tree_handler'
+  yse_cascades.field_utils:
+    class: Drupal\yse_cascades\Service\FieldUtils
+    arguments:
+      - '@entity_type.manager'
+      - '@entity_field.manager'
+      - '@entity.definition_update_manager'
+      - '@plugin.manager.menu.link'
+      - '@menu_item_extras.menu_link_tree_handler'
+      - '@menu_entity_index.tracker'
+      - '@yse_cascades.nodeform_utils'
+      - '@yse_cascades.tree_utils'
+      - '@database'
