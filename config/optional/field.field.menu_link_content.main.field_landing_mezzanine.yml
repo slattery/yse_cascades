@@ -1,0 +1,21 @@
+uuid: 67fc6309-ca0a-4b27-8866-a4c978b43393
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.menu_link_content.field_landing_mezzanine
+    - system.menu.main
+id: menu_link_content.main.field_landing_mezzanine
+field_name: field_landing_mezzanine
+entity_type: menu_link_content
+bundle: main
+label: Mezzanine
+description: ''
+required: false
+translatable: false
+default_value: {  }
+default_value_callback: ''
+settings:
+  on_label: 'On'
+  off_label: 'Off'
+field_type: boolean

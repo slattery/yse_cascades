@@ -1,0 +1,19 @@
+uuid: f11b81f3-785b-472b-9274-1e6c4cbc62b0
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.menu_link_content.field_path_shortcode
+    - system.menu.main
+id: menu_link_content.main.field_path_shortcode
+field_name: field_path_shortcode
+entity_type: menu_link_content
+bundle: main
+label: 'Path Shortcode'
+description: ''
+required: false
+translatable: false
+default_value: {  }
+default_value_callback: ''
+settings: {  }
+field_type: string

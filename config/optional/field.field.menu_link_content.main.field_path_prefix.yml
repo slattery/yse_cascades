@@ -1,0 +1,19 @@
+uuid: 75dca8c4-6c73-458c-86a6-66ee9e2b070e
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.menu_link_content.field_path_prefix
+    - system.menu.main
+id: menu_link_content.main.field_path_prefix
+field_name: field_path_prefix
+entity_type: menu_link_content
+bundle: main
+label: 'Landing Prefix'
+description: ''
+required: false
+translatable: false
+default_value: {  }
+default_value_callback: ''
+settings: {  }
+field_type: string
