@@ -24,7 +24,13 @@ use Drupal\menu_link_content\Entity\MenuLinkContent as MenuLinkContentBase;
 use Drupal\yse_cascades\Service\NodeFormUtils;
 use Drupal\yse_cascades\Service\TreeUtils;
 
+use Drupal\Core\DependencyInjection\DependencySerializationTrait;
+
+
 class FieldUtils {
+
+  use DependencySerializationTrait;
+
 
   /**
    * The entity type manager.
@@ -497,36 +503,41 @@ class FieldUtils {
     else {
       return;
     }
-    // Get all the fields from all the menus that use this node?
-    $plugin_id  = $menu_link->getPluginId();
-    $menusteps = $this->menuLinkManager->getParentIds($plugin_id);
-    $harvest_results = $this->treeUtils->harvest_menu_link_content_extras($plugin_id, $menusteps);
-    $extrarows = [];
 
-    foreach( $harvest_results as $fieldkey => $result){
-      $rowdata = $resultmarkup = [];
-      //TODO config this array
-      foreach (['catalog', 'collect', 'landing', 'feature'] as $technique) {
-        if (str_starts_with($fieldkey, "field_{$technique}")){
-          if (!empty($result['source_nodes']) && is_array($result['source_nodes']) && count($result['source_nodes']) > 0) {
-            $kv = array_combine($result['source_nodes'], $result['value_string']);
-            foreach ($kv as $k => $v){
-              $resultmarkup[] = "<a href='/node/{$k}' target='_xtra' class='xtramarkup'>{$v}</a>";
+    $plugin_id  = $menu_link->getPluginId();
+    if (!empty($plugin_id)){
+      $menusteps = $this->menuLinkManager->getParentIds($plugin_id);
+      $harvest_results = $this->treeUtils->harvest_menu_link_content_extras($plugin_id, $menusteps);
+      $extrarows = [];
+      if (!empty($harvest_results)){
+        foreach( $harvest_results as $fieldkey => $result){
+          $rowdata = $resultmarkup = [];
+          //TODO config this array
+          foreach (['catalog', 'collect', 'landing', 'feature'] as $technique) {
+            if (str_starts_with($fieldkey, "field_{$technique}")){
+              if (!empty($result['source_nodes']) && is_array($result['source_nodes']) && count($result['source_nodes']) > 0) {
+                $kv = array_combine($result['source_nodes'], $result['value_string']);
+                foreach ($kv as $k => $v){
+                  $resultmarkup[] = "<a href='/node/{$k}' target='_xtra' class='xtramarkup'>{$v}</a>";
+                }
+                $rowdata = [
+                  'token_base' => ($technique == 'landing') ? "cascades:{$result['field_name']}:landing" : "cascades:{$result['field_name']}",
+                  'field_name' => $result['field_name'],
+                  'technique' => $result['technique'],
+                  'resultmarkup' => implode(', ', $resultmarkup),
+                ];
+              }
+              if (!empty($rowdata['field_name'])) {
+                $extrarows[] = $rowdata;
+              }
             }
-            $rowdata = [
-              'token_base' => ($technique == 'landing') ? "cascades:{$result['field_name']}:landing" : "cascades:{$result['field_name']}",
-              'field_name' => $result['field_name'],
-              'technique' => $result['technique'],
-              'resultmarkup' => implode(', ', $resultmarkup),
-            ];
-          }
-          if (!empty($rowdata['field_name'])) {
-            $extrarows[] = $rowdata;
           }
         }
+        return $extrarows;
       }
+    } else {
+      return;
     }
-    return $extrarows;
   }
 
 }

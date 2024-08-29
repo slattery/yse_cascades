@@ -35,18 +35,52 @@ function yse_cascades_help($route_name, RouteMatchInterface $route_match) {
   return NULL;
 }
 
+
 /**
- * Implements hook_form_FORM_ID_alter()
+ * Implements hook_entity_base_field_info().
+ *
+ * Adds a view mode field for later using it per menu item and manage render
+ * based on the view mode.
+ * EntityTypeInterface
+ * @see hook_entity_base_field_info()
  */
-function yse_cascades_form_node_edit_form_alter(&$form, Drupal\Core\Form\FormState $form_state, $form_id) {
-  \Drupal::service('yse_cascades.nodeform_utils')->form_node_form_alter($form, $form_state, $form_id);
+
+function yse_cascades_entity_base_field_info($entity_type) {
+  // every hook is being loaded with Drupal\Core\Entity\ContentEntityType
+  // I have no idea why
+
+  $c = get_class($entity_type);
+  $i = $entity_type->get('id');
+  if ($i == 'menu_link_content' ){
+    if ($c == 'Drupal\Core\Entity\ContentEntityType') {
+      //will drupal notice?
+      $entity_type = \Drupal::service('entity_type.manager')->getDefinition($i);
+    }
+    $fields = [];
+    $fields['primary'] = \Drupal::service('yse_cascades.field_utils')->getPrimaryFieldDefinition();
+    return $fields;
+  }
 }
+
+/**
+ * Implements hook_entity_extra_field_info().
+ * Puts our source counter in the form config pages
+ */
+function yse_cascades_entity_extra_field_info() {
+  $extra = \Drupal::service('yse_cascades.field_utils')->get_entity_extra_field_info();
+  return $extra;
+}
+
 
 /**
  * Implements hook_form_FORM_ID_alter()
  */
 function yse_cascades_form_node_form_alter(&$form, Drupal\Core\Form\FormState $form_state, $form_id) {
-    \Drupal::service('yse_cascades.nodeform_utils')->form_node_form_alter($form, $form_state, $form_id);
+  $form_object = $form_state->getFormObject();
+  if (!$form_object || !$form_object instanceof ContentEntityForm) {
+      return;
+  }
+  \Drupal::service('yse_cascades.nodeform_utils')->form_node_form_alter($form, $form_state, $form_id);
 }
 
 /*
@@ -54,56 +88,20 @@ function yse_cascades_form_node_form_alter(&$form, Drupal\Core\Form\FormState $f
  * so we recreate much of that here.
  */
 
-/**
- * Implements hook_theme_suggestions_form_element().
+ /**
+ * Implements hook_node_form_alter().
  */
-function yse_cascades_theme_suggestions_form_element_alter(&$suggestions, $variables) {
-  //operate only on menu-extra elements
-  if (isset($variables['element']['#field_parents']) && count($variables['element']['#field_parents']) > 1 && $variables['element']['#field_parents'][0] == 'menu' &&  $variables['element']['#field_parents'][1] == 'extra'){
-    $suggestions[] = $variables['theme_hook_original'] . '__menu_extra';
+function yse_cascades_form_alter(&$form, FormStateInterface $form_state, $form_id) {
+
+  $form_object = $form_state->getFormObject();
+
+  if (!$form_object || !$form_object instanceof ContentEntityForm) {
+      return;
   }
+  \Drupal::service('yse_cascades.field_utils')->node_form_alter($form, $form_state, $form_id);
 }
 
-
-function yse_cascades_theme_suggestions_input_alter(&$suggestions, $variables) {
-  //operate only on menu-extra elements
-  if (isset($variables['element']['#field_parents']) && count($variables['element']['#field_parents']) > 1 && $variables['element']['#field_parents'][0] == 'menu' &&  $variables['element']['#field_parents'][1] == 'extra'){
-    $suggestions[] = 'field__' . $variables['element']['#type'] . '__menu_extra';
-  }
-
-}
-
-function yse_cascades_theme_suggestions_select_alter(&$suggestions, $variables) {
-  //operate only on menu-extra elements
-  if (isset($variables['element']['#field_parents'])  && count($variables['element']['#field_parents']) > 1 && $variables['element']['#field_parents'][0] == 'menu' &&  $variables['element']['#field_parents'][1] == 'extra'){
-    $suggestions[] = 'field__' . $variables['element']['#type'] . '__menu_extra';
-  }
-}
-
-function yse_cascades_preprocess_field_multiple_value_form(&$variables) {
-  if (isset($variables['element']['#field_parents'])  && count($variables['element']['#field_parents']) > 1 && $variables['element']['#field_parents'][0] == 'menu' &&  $variables['element']['#field_parents'][1] == 'extra'){
-
-
-    $index        = $variables['element']['#max_delta'];
-    $parentstring = str_replace('_', '-', implode('-', $variables['element']['#parents'])) ?? null;
-    $desc = $variables['element'][0]['#description'] ?? null;
-    $type = $variables['element'][0]['value']['#type'] ?? null;
-
-    if (!isset($variables['third_party_settings'])){
-      $variables['third_party_settings'] = [];
-    }
-
-    $variables['third_party_settings']['parentstring']  = $parentstring;
-    $variables['third_party_settings']['fieldtype']     = $variables['element'][0]['value']['#type'] ?? null;
-
-    if (isset($variables['element'][0]['#description'])){
-      $description_attributes['id'] = 'edit-' . $parentstring . '-0-value';
-      $variables['description']['attributes'] = new Attribute($description_attributes);
-      $variables['description']['content'] = $variables['element'][0]['#description'];
-    }
-
-  }
-}
+//function yse_cascades_preprocess_field_multiple_value_form(&$variables) {}
 
 function yse_cascades_preprocess_form_element(&$variables) {
   //operate only on menu-extra elements
@@ -217,33 +215,6 @@ function yse_cascades_preprocess_container(&$variables) {
 
 
 /**
- * Implements hook_entity_base_field_info().
- *
- * Adds a view mode field for later using it per menu item and manage render
- * based on the view mode.
- * EntityTypeInterface
- * @see hook_entity_base_field_info()x
- */
-
-function yse_cascades_entity_base_field_info($entity_type) {
-  // every hook is being loaded with Drupal\Core\Entity\ContentEntityType
-  // I have no idea why
-
-  $c = get_class($entity_type);
-  $i = $entity_type->get('id');
-  if ($i == 'menu_link_content' ){
-    if ($c == 'Drupal\Core\Entity\ContentEntityType') {
-      //will drupal notice?
-      $entity_type = \Drupal::service('entity_type.manager')->getDefinition($i);
-    }
-    $fields = [];
-    $fields['primary'] = \Drupal::service('yse_cascades.field_utils')->getPrimaryFieldDefinition();
-    return $fields;
-  }
-}
-
-
-/**
  * Implements hook_ENTITY_TYPE_presave().
  */
 function yse_cascades_menu_link_content_presave(EntityInterface $entity) {
@@ -289,33 +260,42 @@ function yse_cascades_menu_link_content_presave(EntityInterface $entity) {
     }
   }
 
-/**
- * Implements hook_entity_extra_field_info().
- * Puts our source counter in the form config pages
- */
-function yse_cascades_entity_extra_field_info() {
-  $extra = \Drupal::service('yse_cascades.field_utils')->get_entity_extra_field_info();
-  return $extra;
-}
-
-/**
- * Implements hook_node_form_alter().
- */
-function yse_cascades_form_alter(&$form, FormStateInterface $form_state, $form_id) {
-  //Can this work with the passed formref?
-  \Drupal::service('yse_cascades.field_utils')->node_form_alter($form, $form_state, $form_id);
-}
 
 /**
  * Implements hook_module_implements_alter().
  */
 function yse_cascades_module_implements_alter(&$implementations, $hook) {
-  if ($hook == 'form_node_form_alter' || $hook == 'form_node_edit_form_alter'
-  || $hook == 'entity_base_field_info') {
+  if ($hook == 'form_node_form_alter' || $hook == 'entity_base_field_info') {
     $group = $implementations['yse_cascades'];
     unset($implementations['yse_cascades']);
     $implementations['yse_cascades'] = $group;
   }
 }
 
+
+/**
+ * Implements hook_theme_suggestions_form_element().
+ */
+function yse_cascades_theme_suggestions_form_element_alter(&$suggestions, $variables) {
+  //operate only on menu-extra elements
+  if (isset($variables['element']['#field_parents']) && count($variables['element']['#field_parents']) > 1 && $variables['element']['#field_parents'][0] == 'menu' &&  $variables['element']['#field_parents'][1] == 'extra'){
+    $suggestions[] = $variables['theme_hook_original'] . '__menu_extra';
+  }
+}
+
+
+function yse_cascades_theme_suggestions_input_alter(&$suggestions, $variables) {
+  //operate only on menu-extra elements
+  if (isset($variables['element']['#field_parents']) && count($variables['element']['#field_parents']) > 1 && $variables['element']['#field_parents'][0] == 'menu' &&  $variables['element']['#field_parents'][1] == 'extra'){
+    $suggestions[] = 'input__' . $variables['element']['#type'] . '__nodeform';
+  }
+
+}
+
+function yse_cascades_theme_suggestions_select_alter(&$suggestions, $variables) {
+  //operate only on menu-extra elements
+  if (isset($variables['element']['#field_parents'])  && count($variables['element']['#field_parents']) > 1 && $variables['element']['#field_parents'][0] == 'menu' &&  $variables['element']['#field_parents'][1] == 'extra'){
+    $suggestions[] = 'select__' . $variables['element']['#type'] . '__menu_extra';
+  }
+}
 

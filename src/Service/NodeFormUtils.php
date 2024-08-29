@@ -28,8 +28,11 @@ use Drupal\menu_link_content\MenuLinkContentInterface;
 use Drupal\system\Entity\Menu;
 use Drupal\system\MenuInterface;
 
+use Drupal\Core\DependencyInjection\DependencySerializationTrait;
+
 class NodeFormUtils {
 
+   use DependencySerializationTrait;
   /**
    * The menu parent form selector.
    *
@@ -99,7 +102,6 @@ class NodeFormUtils {
 
   public function edit_menu_extra_refresh(array &$form, FormStateInterface &$form_state) {
     //Triggered when we change menu parent in standard menu_link subform
-
     if (empty($form_state->getTriggeringElement())) {
       //is it necessary to run twice.. what is validating?
       return;
@@ -114,6 +116,7 @@ class NodeFormUtils {
     //ajax should knows if a form got used or changed, by triggering element and values vs input
     //getValues() brings the id and entity_id with it and seems to capture User Input as well
     //
+
     $menudata = $form_state->getValues()['menu'] ?? $form_state->getUserInput()['menu'] ?? [];
     if (!empty($menudata['menu_parent'])) {
       $bundle = $entity_type = $mlid = NULL;
@@ -215,6 +218,7 @@ class NodeFormUtils {
     elseif (!empty($form_state->getTriggeringElement())) {
       $marker = 'ajax_w_trigger';
     }
+
     else {
       //maybe this is the validate phase.
       $marker = 'ajax_pre_trigger';
@@ -312,7 +316,6 @@ class NodeFormUtils {
     //could use a test here for extras
     self::_create_extra_wrapper($form, $form_state, $form_id);
     if ($link = self::_get_saved_menulinkcontent_instance($form_state)) {
-
       foreach ($link->getFieldDefinitions() as $field_name => $field_def) {
         if ($field_def instanceof BaseFieldDefinition) {
           $form_state->setValue($field_name, $link->get($field_name)->value);
@@ -331,22 +334,20 @@ class NodeFormUtils {
           }
         }
       }
-
       ///BUILDFORM
       $form_display = EntityFormDisplay::load('menu_link_content.' . $link->getMenuName() . '.nodeform');
       if ($form_display && ($form_display instanceof EntityFormDisplay || $form_display instanceof EntityFormDisplayInterface)) {
+
         $form_display->buildForm($link, $form['menu']['link']['extra'], $form_state);
 
         foreach (Element::children($form['menu']['link']['extra']) as $key) {
           //only showing extras, custom fields and view mode
           if ($key != 'tempstore_key' && strpos($key, 'field_') !== 0 && strpos($key, 'view_mode') !== 0) {
             unset($form['menu']['link']['extra'][$key]);
-          } // this special casing might belong to the nodeform view mode in future
-          //breaking elseif here to make new set
-          if ($key == 'field_path_prefix') {
-            $form['menu']['link']['extra'][$key]['#states'] =
-              ['invisible' => [':input[name="menu[extra][field_menu_landing][value]"]' => ['checked' => FALSE]]];
           }
+
+          //#states and invisibilty would go here
+
         }
         //HOPING THIS MEANS I DON'T NEED TO REPRO SUBMIT AND SAVE
         foreach (array_keys($form['actions']) as $action) {
@@ -354,12 +355,10 @@ class NodeFormUtils {
             $form['actions'][$action]['#submit'][] = [$this, '_save_menu_link_fields'];
           }
         }
-        //dvm($form['actions']);
       }
       else {
         //TDOD Exception.
       }
-
 
       //do tempstore on initial so we keep loaded vals if parent is changed within same menu.
       //might move this up top in yse_casades_...alter
@@ -367,6 +366,8 @@ class NodeFormUtils {
         $nodeformuuid = self::_get_tempstore_key($form, $form_state);
         $initbundle = $link->toArray()['bundle'][0]['target_id'] ?? NULL;
         self::_save_temp_state($form, $form_state, $initbundle, $link->toArray());
+
+
       }
       else {
         //ajax
@@ -374,51 +375,12 @@ class NodeFormUtils {
     }
     else {
       //allow menu_ui to take over?
+      //$form['#entity_builders'][] = 'menu_ui_node_builder';
+      //$form['#entity_builders'][] = 'menu_ui_form_node_type_form_builder';
+      //$form['actions'][$action]['#submit'][] = 'menu_ui_form_node_form_submit';
+      //We add an submit action when ajax is used above.
     }
     // END ExTRAS
-
-    //foreach (array_keys($form['actions']) as $action) {
-    //  if ($action != 'preview' && isset($form['actions'][$action]['#type']) && $form['actions'][$action]['#type'] === 'submit') {
-    //    $form['actions'][$action]['#submit'][] = 'menu_ui_form_node_form_submit';
-    //  }
-    //}
-
-    //allowing menu_ui to take it
-    //$form['#entity_builders'][] = [$this, 'yse_cascades_node_builder'];
-  }
-
-
-  /**
-   * Entity form builder to add the menu information to the node.
-   * depreciated
-   */
-  function yse_cascades_node_builder($entity_type, NodeInterface $entity, &$form, FormStateInterface $form_state, $form_id = NULL) {
-    $entity->menu = $form_state->getValue('menu');
-  }
-
-
-  //depreciated
-  private function _unnest_link_content($arr) {
-    if (!empty($arr['extra'])) {
-      $ex_extra = array_map(fn($key) => $key['value'] ?? $key[0]['value'], $arr['extra']);
-      unset($arr['extra']);
-      $outboundarr = array_merge($arr, $ex_extra);
-    }
-    else {
-      $filteredarr = array_filter($arr, "self::_filter_link_content", ARRAY_FILTER_USE_KEY);
-      $outboundarr = array_map(fn($key) => $key['value'] ?? $key[0]['value'] ?? NULL, $filteredarr);
-      //allowing nodeform rather than menu_link_content to shape the array
-      $outboundarr['entity_id'] = $outboundarr['id'] ?? 0;
-      $outboundarr['id'] = $outboundarr['uuid'] ? 'menu_link_content:' . $outboundarr['uuid'] : NULL;
-      $outboundarr['menu_parent'] = $outboundarr['parent'] ? $outboundarr['menu_name'] . ':' . $outboundarr['parent'] : NULL;
-      $outboundarr['bundle'] = $outboundarr['menu_name'] ?? NULL;
-    }
-    return $outboundarr;
-  }
-  //depreciated using the basefields vs extras now
-  private function _filter_link_content($key) {
-    $keepkeys = ['extra', 'id', 'entity_id', 'uuid', 'bundle', 'enabled', 'title', 'description', 'menu_name', 'external', 'parent', 'menu_parent', 'tempstore_key', 'view_mode'];
-    return (in_array($key, $keepkeys) || strpos($key, 'field_') === 0);
   }
 
   /**
@@ -485,10 +447,10 @@ class NodeFormUtils {
     }
     //define ajax support trigger and target
     if (isset($form['menu']['link']['menu_parent']) && empty($form['menu']['link']['menu_parent']['#ajax'])) {
-      $element =& $form['menu']['link']['menu_parent'];
+     $element =& $form['menu']['link']['menu_parent'];
       $element['#ajax'] = [
-        'callback' => [$this, 'edit_menu_extra_refresh'],
-        'event' => 'change',
+       'callback' => [$this, 'edit_menu_extra_refresh'],
+     'event' => 'change',
         'wrapper' => 'edit-menu-extra',
         'method' => 'replace',
       ];
@@ -525,17 +487,23 @@ class NodeFormUtils {
     if (!empty($form['menu']['link']['extra'][$key]['widget']['value'])) {
       $w =& $form['menu']['link']['extra'][$key]['widget'];
       $c = 'edit-menu-extra-' . $k . '-value';
+      $n = 'menu[extra][' . $key . '][value]';
     }
     elseif (!empty($form['menu']['link']['extra'][$key]['widget']['0']['value'])) {
       $w =& $form['menu']['link']['extra'][$key]['widget']['0'];
       $c = 'edit-menu-extra-' . $k . '-0-value';
+      $n = 'menu[extra][' . $key . '][0][value]';
     }
 
     if (isset($w)) {
+      $w['#attributes']['data-drupal-selector'] = 'edit-menu-extra-' . $k;
+      $w['#id'] = 'edit-menu-extra-' . $k;
+    //  $w['#theme'] = 'field_multiple_value_form__node_yse_documentation_page_edit_form__menu_extra_' . $k;
       $w['value']['#id'] = $c;
+      $w['value']['#name'] = $c;
       $w['value']['#attributes']['id'] = $c;
       $w['value']['#attributes']['data-drupal-selector'] = $c;
-      $w['value']['#attributes']['name'] = 'menu[extra][' . $key . '][value]';
+      $w['value']['#attributes']['name'] = $n;
       $w['value']['#description'] = $w['#description'];
       $w['value']['#description_display'] = 'after';
 
@@ -549,14 +517,9 @@ class NodeFormUtils {
         $w['#field_name'] = $key;
       }
     }
-    //TODO make this a config item?
-    if ($key == 'field_path_prefix') {
-      $form['menu']['link']['extra'][$key]['#states'] =
-        ['invisible' => [':input[name="menu[extra][field_menu_landing][value]"]' => ['checked' => FALSE]]];
-    }
 
-    //TODO make a big assumption that if we reuse fields they have the same utility
-    //watch for triggeringElement only?
+    //#states and invisibilty would go here
+
     $swapin = TRUE;
     if (isset($swapin)) {
       //use the form_state that we built above, its flattened.
@@ -706,8 +669,9 @@ class NodeFormUtils {
     $node_type = $node->type->entity;
     $menu_name = strtok($node_type->getThirdPartySetting('menu_ui', 'parent', 'main:'), ':');
     $defaults = FALSE;
-    if ($node->id()) {
-      $id = FALSE;
+    $type_menus = NULL;
+
+    if ($node->id() || $node->isNew()) {
       // Give priority to the default menu
       $type_menus = $node_type->getThirdPartySetting('menu_ui', 'available_menus', ['main']);
       // If there are no menus available to this node type, exit.
@@ -715,7 +679,11 @@ class NodeFormUtils {
       if (empty(array_values($type_menus))) {
         return;
       }
+    }
 
+
+    if ($node->id()) {
+      $id = FALSE;
       // First check for extras rendernodes/homenodes
       $query = \Drupal::entityQuery('menu_link_content');
 
@@ -829,7 +797,4 @@ class NodeFormUtils {
     }
     return $defaults;
   }
-
-
-
 }

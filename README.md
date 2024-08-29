@@ -86,3 +86,10 @@ ex: [cascades:stepparents:join-path]/[cascades:stepself] //one/there-are-two/thr
 We add per-menu item fields that are not base fields or view mode, into the node form where you specify the menu link parent and position on the nodeform
 
 We also add extra fields under the normal fields for menu item reports per node.
+
+## TODO
+
+- More caching with node and menu link content dependencies
+- Try to update path with any save, right now second save does it.
+- Sometimes we get a more-than-one-editor warning
+- look for preprocess bloat
