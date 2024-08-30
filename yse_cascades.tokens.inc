@@ -53,11 +53,11 @@ function yse_cascades_token_info_alter(&$info) {
             ];
           }
 
-          $info['tokens'][$token_name]['landing'] = [
-            'name' => 'landing',
-            'description' => 'Tokens for arbitrary landing pages.',
+          $info['tokens'][$token_name]['levelup'] = [
+            'name' => 'levelup',
+            'description' => 'Tokens for arbitrary levelup pages.',
             'module' => 'yse_cascades',
-            'type' => 'landing',
+            'type' => 'levelup',
           ];
 
           $info['tokens']['cascades'][$token_name] = array(
@@ -107,20 +107,20 @@ function yse_cascades_token_info() {
       'type' => 'cascades',
     );
 
-  $types['landing'] = array(
-    'name' => t('Landing'),
-    'description' => t('Tokens for arbitrary landing pages.'),
+  $types['levelup'] = array(
+    'name' => t('levelup'),
+    'description' => t('Tokens for arbitrary levelup pages.'),
   );
 
-  $tokens['landing']['content'] = [
+  $tokens['levelup']['content'] = [
     'name' => 'Content',
-    'description' => 'Landing menu content',
+    'description' => 'levelup menu content',
     'module' => 'yse_cascades',
     'type' => $mlc_token_type,
   ];
 
-  $tokens['landing']['node'] = [
-      'name' => 'Landing node content',
+  $tokens['levelup']['node'] = [
+      'name' => 'levelup node content',
       'description' => 'The node',
       'type' => 'node'
   ];
@@ -308,7 +308,7 @@ function yse_cascades_tokens($type, array $tokens, array $data, array $options, 
               $replacements[$original] = $obj ?? NULL;
             }
             break;
-          case 'landing':
+          case 'levelup':
             if (!empty($subs[$token_field_name]['value_string'])) {
               $nid = array_values($subs[$token_field_name]['value_string'])[0];
               $replacements[$original] = $nid ?? NULL;
@@ -331,10 +331,10 @@ function yse_cascades_tokens($type, array $tokens, array $data, array $options, 
         if ($parents_tokens = \Drupal::token()->findWithPrefix($tokens, 'objects')) {
           $replacements += \Drupal::token()->generate('array', $parents_tokens, ['array' => $subs[$token_field_name]['value_object']], $options, $bubbleable_metadata);
         }
-        if ($parents_tokens = \Drupal::token()->findWithPrefix($tokens, 'landing')) {
-          $landing_link = array_values($subs[$token_field_name]['value_object'])[0];
-          $landing_nid  = array_values($subs[$token_field_name]['value_string'])[0];
-          $replacements += \Drupal::token()->generate('landing', $parents_tokens, ['landing' => $landing_link, 'nid' => $landing_nid], $options, $bubbleable_metadata);
+        if ($parents_tokens = \Drupal::token()->findWithPrefix($tokens, 'levelup')) {
+          $levelup_link = array_values($subs[$token_field_name]['value_object'])[0];
+          $levelup_nid  = array_values($subs[$token_field_name]['value_string'])[0];
+          $replacements += \Drupal::token()->generate('levelup', $parents_tokens, ['levelup' => $levelup_link, 'nid' => $levelup_nid], $options, $bubbleable_metadata);
         }
       }
     }
@@ -342,27 +342,27 @@ function yse_cascades_tokens($type, array $tokens, array $data, array $options, 
 
   }//fields
 
-  if ($type == 'landing'){
+  if ($type == 'levelup'){
 
-        if (!empty($data['landing']) && $contentloader_tokens = $token_service->findWithPrefix($tokens, 'content')) {
+        if (!empty($data['levelup']) && $contentloader_tokens = $token_service->findWithPrefix($tokens, 'content')) {
             $replacements += $token_service->generate(
               'menu_link_content',
               $contentloader_tokens,
-              ['menu_link_content' => $data['landing']],
+              ['menu_link_content' => $data['levelup']],
               $options,
               $bubbleable_metadata);
           }
 
           if (!empty($data['nid']) && $nodeloader_tokens = $token_service->findWithPrefix($tokens, 'node')) {
-            $landing_node = NodeLoader::load($data['nid']);
+            $levelup_node = NodeLoader::load($data['nid']);
             $replacements += $token_service->generate(
               'node',
               $nodeloader_tokens,
-              ['node' => $landing_node],
+              ['node' => $levelup_node],
               $options,
               $bubbleable_metadata);
           }
-  }//landing
+  }//levelup
 
 //TODO
 //with 'content' and 'node' taking place in cascades, we might not need this or we should do only nonBase fields.
@@ -428,37 +428,37 @@ function _assemble_stepparents_array($active_link, $active_trail = NULL, $fieldn
     return NULL;
   }
   $stepparents = [];
-  $landing_plugin = $landing_link = NULL;
+  $levelup_plugin = $levelup_link = NULL;
 
   $active_plugin = $active_link->getPluginId();
   //$active_entity = \Drupal::service('menu_item_extras.menu_link_tree_handler')->getMenuLinkItemEntity($active_link);
 
-  //Someday we can support separate landing streams, for now we expect one per menu bundle
-  //We don't need to know the name just the field clue of 'field_landing_*'
-  //if we find a landing, this will truncate the step climb and could add a prefix to the path.
+  //Someday we can support separate levelup streams, for now we expect one per menu bundle
+  //We don't need to know the name just the field clue of 'field_levelup_*'
+  //if we find a levelup, this will truncate the step climb and could add a prefix to the path.
 
   if (!empty($fieldname)) {
-    $landing_result = \Drupal::service('yse_cascades.tree_utils')->climb_and_gather($active_trail, 'landing', $fieldname);
+    $levelup_result = \Drupal::service('yse_cascades.tree_utils')->climb_and_gather($active_trail, 'levelup', $fieldname);
   }
   else {
     foreach ($active_link->getFieldDefinitions() as $field_name => $field_def) {
-      if (str_starts_with($field_name, 'field_landing')) {
-        $landing_result = \Drupal::service('yse_cascades.tree_utils')->climb_and_gather($active_trail, 'landing', $field_name);
+      if (str_starts_with($field_name, 'field_levelup')) {
+        $levelup_result = \Drupal::service('yse_cascades.tree_utils')->climb_and_gather($active_trail, 'levelup', $field_name);
         break;
       }
     }
   }
 
-  if($landing_result && !empty($landing_result['value_object'])){
-    $landing_plugin = array_key_first($landing_result['value_object']);
-    $landing_link   = $landing_result['value_object'][$landing_plugin];
+  if($levelup_result && !empty($levelup_result['value_object'])){
+    $levelup_plugin = array_key_first($levelup_result['value_object']);
+    $levelup_link   = $levelup_result['value_object'][$levelup_plugin];
   }
 
 
   //steps should have a string for each level in the menu to the root
   //we want to remove the string for the node where the token is called, the title is more often used
-  //we want to stop progressing up the steps if we encounter a landing node
-  //if we encounter a landing, we need to get the prefix and the shortcode from that node link content
+  //we want to stop progressing up the steps if we encounter a levelup node
+  //if we encounter a levelup, we need to get the prefix and the shortcode from that node link content
   $steps_result = \Drupal::service('yse_cascades.tree_utils')->climb_and_gather($active_trail, 'swapout', 'field_path_shortcode');
   if (!empty($steps_result) && !empty($steps_result['value_string'])){
 
@@ -468,21 +468,21 @@ function _assemble_stepparents_array($active_link, $active_trail = NULL, $fieldn
     return [];
   }
 
-  //not unshifted yet, we need to test against landing first
+  //not unshifted yet, we need to test against levelup first
   $stepkeys = array_keys($steps);
 
-  if (!empty($landing_link)) {
-    //$landing_entity = \Drupal::service('menu_item_extras.menu_link_tree_handler')->getMenuLinkItemEntity($landing_link);
-    $step_prefix = $landing_link->get('field_path_prefix')->getString() ?? NULL;
-    $step_shorty = $landing_link->get('field_path_shortcode')->getString() ?? $landing_entity->getTitle();
-    $landing_pair = [];
+  if (!empty($levelup_link)) {
+    //$levelup_entity = \Drupal::service('menu_item_extras.menu_link_tree_handler')->getMenuLinkItemEntity($levelup_link);
+    $step_prefix = $levelup_link->get('field_path_prefix')->getString() ?? NULL;
+    $step_shorty = $levelup_link->get('field_path_shortcode')->getString() ?? $levelup_entity->getTitle();
+    $levelup_pair = [];
     if (!empty($step_prefix)) {
       $steps['stepparents_prefix'] = $step_prefix;
     }
 
-    //is the current node a landing node?
+    //is the current node a levelup node?
     //if so, the prefix will be enough (assuming stepself is set on this menu)
-    if ($landing_plugin == $active_plugin) {
+    if ($levelup_plugin == $active_plugin) {
       return ['stepparents_prefix' => $step_prefix];
     }
   }
@@ -490,7 +490,7 @@ function _assemble_stepparents_array($active_link, $active_trail = NULL, $fieldn
 
   $tempkeys = [];
   foreach ($stepkeys as $k) {
-    if ($landing_plugin && $landing_plugin == $k) {
+    if ($levelup_plugin && $levelup_plugin == $k) {
       //attach pair and break;
       array_unshift($tempkeys, $k);
       array_unshift($tempkeys, 'stepparents_prefix');

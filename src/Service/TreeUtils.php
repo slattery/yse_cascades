@@ -101,15 +101,15 @@ class TreeUtils {
    *    'value_string = 'tom|disk|harry|subarrays|get|flattened',
    *    'value_objext  = ['tom','disk','harry','subarrays','get','flattened']
    *  ],
-   *  field_landing_homenode' => [
-   *    'technique' => 'landing',
-   *    'field_name' => 'field_landing_homenode',
+   *  field_levelup_homenode' => [
+   *    'technique' => 'levelup',
+   *    'field_name' => 'field_levelup_homenode',
    *    'value_string = '1003',
    *    'value_object = [Node]
    *  ],
    *  'field_onestop_homenode' => [
    *    'technique' => 'onestop',
-   *    'field_name' => 'field_landing_homenode',
+   *    'field_name' => 'field_levelup_homenode',
    *    'value_string = '1003',
    *  ]
    * ]
@@ -156,8 +156,8 @@ class TreeUtils {
               $gathering[$field_name] = $harvest;
             }
             // return first matching ancestor node enity
-            if (str_starts_with($field_name, 'field_landing')) {
-              $harvest = self::climb_and_gather($ancestors, 'landing', $field_name);
+            if (str_starts_with($field_name, 'field_levelup')) {
+              $harvest = self::climb_and_gather($ancestors, 'levelup', $field_name);
               $gathering[$field_name] = $harvest;
             }
             if ($field_name == 'field_path_shortcode') {
@@ -194,9 +194,9 @@ class TreeUtils {
         $result_string = $menu_xtra->get($field_name)->getString();
         $result_value = $menu_xtra->get($field_name)->getValue();
         $result_nid = $menu_link->getRouteParameters()['node'];
-        $result_link = ($technique == 'landing') ? $menu_xtra : NULL;
-        //$result_node = ($technique == 'landing') ? $this->entityTypeManager->getStorage('node')->load($result_nid) : NULL;
-        //keep looping for collect and catalog, end loop for onestop and landing.
+        $result_link = ($technique == 'levelup') ? $menu_xtra : NULL;
+        //$result_node = ($technique == 'levelup') ? $this->entityTypeManager->getStorage('node')->load($result_nid) : NULL;
+        //keep looping for collect and catalog, end loop for onestop and levelup.
         //adding plugin_id bc token arrays are built from assoc inputs.
 
         if (empty($menu_xtra->get($field_name)->getString())) {
@@ -225,7 +225,7 @@ class TreeUtils {
               $result['value_string'][$plugin_id] = $result_string;
               $result['value_object'][$plugin_id] = $result_value;
               continue 2;
-            case 'landing':
+            case 'levelup':
               $result['source_nodes'][$plugin_id] = $result_nid;
               $result['value_string'][$plugin_id] = $menu_xtra->getTitle();
               $result['value_object'][$plugin_id] = $result_link;

@@ -4,7 +4,7 @@ This module tracks hierarchy and helps pages, nodes, and menus to work together 
 
 ## Dependencies
 
-This module relies on having menu fields configured using menu_item_extra, which serves to indicate when a menu item's node serves as a 'landing', meaning everything below that and above another landing has a hierarchical relationship to the landing page as a sub or chapter, etc.
+This module relies on having menu fields configured using menu_item_extra, which serves to indicate when a menu item's node serves as a 'levelup', meaning everything below that and above another levelup has a hierarchical relationship to the levelup page as a sub or chapter, etc.
 
 This module uses menu_entity_index to help keep track when multiple links point to the same node.
 
@@ -26,14 +26,14 @@ There are currently four behaviors for admin created fields, and naming conventi
 - catalog
 - collect
 - feature
-- landing
+- levelup
 
-There are also two special fields to go with 'landing', field_path_prefix and field_path_shortcode.   There is a special base field called 'primary' which signals that if there are more than one menu item pointing to a given node, the primary is the one that belongs in the nodeform, and is the basis for pathbuilding.
+There are also two special fields to go with 'levelup', field_path_prefix and field_path_shortcode.   There is a special base field called 'primary' which signals that if there are more than one menu item pointing to a given node, the primary is the one that belongs in the nodeform, and is the basis for pathbuilding.
 
 There are three token segments that will return values
  - values:  an array of strings, skips empties
  - objects: an array of structures or entities, skips entities
- - landing: a single nid
+ - levelup: a single nid
  - swapout: an array of strings accepts defaults to avoid skips
 
 ### onestop: boolean field (values)
@@ -55,13 +55,13 @@ ex: [cascades:field_collect_nicenodes:values:first] //one
 Tokens look only at the current menu item for a value
 ex: [cascades:field_feature_basketball:values:first] //spalding
 
-### landing: boolean field
+### levelup: boolean field
 
-Like onestop, the first positive value in the hierarchy climb will be the array eleeent returned.  'landing' alone returns the nid associated with the orimary menu item.  There are subsegments for 'content' which gives access to the menu item content from the landing node's primary menu item, and 'node' which returns values from the associated node itself.
-ex: [cascades:field_landing_mezzanine] \\ 6436 (nid)
-ex: [cascades:field_landing_mezzanine:values:first] \\ 6436
-ex: [cascades:token_landing_mezzanine:landing:content:title] \\ Menu Link Title
-ex: [cascades:token_landing_mezzanine:landing:node:title] \\ Node Title
+Like onestop, the first positive value in the hierarchy climb will be the array eleeent returned.  'levelup' alone returns the nid associated with the orimary menu item.  There are subsegments for 'content' which gives access to the menu item content from the levelup node's primary menu item, and 'node' which returns values from the associated node itself.
+ex: [cascades:field_levelup_homenode] \\ 6436 (nid)
+ex: [cascades:field_levelup_homenode:values:first] \\ 6436
+ex: [cascades:token_levelup_homenode:levelup:content:title] \\ Menu Link Title
+ex: [cascades:token_levelup_homenode:levelup:node:title] \\ Node Title
 
 ### Pathbuilding
 
@@ -70,7 +70,7 @@ There are two tokens that call on two fixed name fields to build paths: 'field_p
  - stepparents: an array of path-friendly strings from the menu hierarchy that come from 'field_path_shortcode' with the menu item title for fallback
  - stepself: a string with the 'current' 'field_path_shortcode' or menu item title
 
-If any adjacent field_landing_* field is positive in the climb, the path will start from that node and include the field_path_prefix string.
+If any adjacent field_levelup_* field is positive in the climb, the path will start from that node and include the field_path_prefix string.
 
 ex: [cascades:stepparents:join-path] // one/two/three
 ex: [cascades:stepself] // four
@@ -93,3 +93,4 @@ We also add extra fields under the normal fields for menu item reports per node.
 - Try to update path with any save, right now second save does it.
 - Sometimes we get a more-than-one-editor warning
 - look for preprocess bloat
+- try to trigger invisiblity on any found _levelup_ field

@@ -4,7 +4,7 @@ dependencies:
   - drupal:help
   - menu_item_extras:menu_item_extras
   - menu_entity_index:menu_entity_index
-description: 'Support arbitrary landings in a hierarchy for nav and data passthrough.'
+description: 'Support arbitrary levelups in a hierarchy for nav and data passthrough.'
 name: 'YSE Cascades'
 package: 'YSE Contrib'
 type: module

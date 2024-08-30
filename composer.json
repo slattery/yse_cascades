@@ -1,6 +1,6 @@
 {
   "name": "slattery/yse_cascades",
-  "description": "Support arbitrary landings in a hierarchy for nav and data passthrough",
+  "description": "Menu item extras fields as signals in a hierarchy for nav and data passthrough",
   "type": "drupal-custom-module",
   "license": "GPL-2.0-or-later"
 }

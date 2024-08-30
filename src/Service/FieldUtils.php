@@ -513,7 +513,7 @@ class FieldUtils {
         foreach( $harvest_results as $fieldkey => $result){
           $rowdata = $resultmarkup = [];
           //TODO config this array
-          foreach (['catalog', 'collect', 'landing', 'feature'] as $technique) {
+          foreach (['catalog', 'collect', 'levelup', 'feature'] as $technique) {
             if (str_starts_with($fieldkey, "field_{$technique}")){
               if (!empty($result['source_nodes']) && is_array($result['source_nodes']) && count($result['source_nodes']) > 0) {
                 $kv = array_combine($result['source_nodes'], $result['value_string']);
@@ -521,7 +521,7 @@ class FieldUtils {
                   $resultmarkup[] = "<a href='/node/{$k}' target='_xtra' class='xtramarkup'>{$v}</a>";
                 }
                 $rowdata = [
-                  'token_base' => ($technique == 'landing') ? "cascades:{$result['field_name']}:landing" : "cascades:{$result['field_name']}",
+                  'token_base' => ($technique == 'levelup') ? "cascades:{$result['field_name']}:levelup" : "cascades:{$result['field_name']}",
                   'field_name' => $result['field_name'],
                   'technique' => $result['technique'],
                   'resultmarkup' => implode(', ', $resultmarkup),

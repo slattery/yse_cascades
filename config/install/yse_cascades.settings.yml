@@ -1,6 +1,0 @@
-nids_only: true
-parabundle_toggle: true
-selected_nodebundles:
-  - yse_landing_general
-  - yse_documentation_page
-  - yse_sbunit_page
