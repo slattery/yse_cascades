@@ -44,21 +44,27 @@ function yse_cascades_token_info_alter(&$info) {
             'nested' => TRUE,
           );
 
-          foreach (['source', 'values', 'objects'] as $thestuff) {
-            $info['tokens'][$token_name][$thestuff] = [
-              'name' => $thestuff,
-              'description' => $field_def->getLabel() . ' ' . $thestuff,
-              'module' => 'yse_cascades',
-              'type' => 'array',
-            ];
+          foreach (['token_onestop', 'token_catalog', 'token_collect', 'token_feature', 'token_levelup'] as $recipient) {
+            if (str_starts_with($token_name, $recipient)) {
+              foreach (['source', 'values'] as $thestuff) {
+                $info['tokens'][$token_name][$thestuff] = [
+                  'name' => $thestuff,
+                  'description' => $field_def->getLabel() . ' ' . $thestuff,
+                  'module' => 'yse_cascades',
+                  'type' => 'array',
+                ];
+              }
+            }
           }
 
-          $info['tokens'][$token_name]['levelup'] = [
-            'name' => 'levelup',
-            'description' => 'Tokens for arbitrary levelup pages.',
-            'module' => 'yse_cascades',
-            'type' => 'levelup',
-          ];
+          if (str_starts_with($token_name, 'token_levelup')) {
+            $info['tokens'][$token_name]['levelup'] = [
+              'name' => 'levelup',
+              'description' => 'Tokens for arbitrary levelup pages.',
+              'module' => 'yse_cascades',
+              'type' => 'levelup',
+            ];
+          }
 
           $info['tokens']['cascades'][$token_name] = array(
             'name' => 'Page ' . $field_def->getLabel(),
@@ -77,7 +83,9 @@ function yse_cascades_token_info_alter(&$info) {
 function yse_cascades_token_info() {
   //removed needs-data arg for now
   //when does this get run?
-    $mlc_token_type = \Drupal::service('token.entity_mapper')->getTokenTypeForEntityType('menu_link_content');
+  $mlc_token_type = \Drupal::service('token.entity_mapper')->getTokenTypeForEntityType('menu_link_content');
+  $nid_token_type = \Drupal::service('token.entity_mapper')->getTokenTypeForEntityType('node');
+  $mlink_token_type = \Drupal::service('token.entity_mapper')->getTokenTypeForEntityType('menu_link');
 
   $types['cascades'] = array(
     'name' => t('Cascades'),
@@ -85,14 +93,14 @@ function yse_cascades_token_info() {
   );
 
   $tokens['cascades']['stepparents'] = array(
-  'name' => 'stepparents',
-  'description' => t('Alternate pathauto builder'),
-  'type' => 'array',
+    'name' => 'stepparents',
+    'description' => t('Alternate pathauto builder'),
+    'type' => 'array',
   );
 
   $tokens['cascades']['stepself'] = array(
-  'name' => 'stepself',
-  'description' => t('Short w/fallback to Menu'),
+    'name' => 'stepself',
+    'description' => t('Short w/fallback to Menu'),
   );
 
   $tokens['current-page']['cascades'] = array(
@@ -100,12 +108,6 @@ function yse_cascades_token_info() {
     'description' => t('Menu link content in hierarchy'),
     'type' => 'cascades',
   );
-
-  $tokens['node']['cascades'] = array(
-      'name' => t('Node cascades'),
-      'description' => t('Menu link content in hierarchy'),
-      'type' => 'cascades',
-    );
 
   $types['levelup'] = array(
     'name' => t('levelup'),
@@ -119,10 +121,15 @@ function yse_cascades_token_info() {
     'type' => $mlc_token_type,
   ];
 
+  $tokens['levelup']['mlid'] = [
+    'name' => 'Levelup Self Mlid',
+    'description' => 'Levelup menu link',
+  ];
+
   $tokens['levelup']['node'] = [
-      'name' => 'levelup node content',
-      'description' => 'The node',
-      'type' => 'node'
+    'name' => 'levelup node content',
+    'description' => 'The node',
+    'type' => $nid_token_type
   ];
 
   return array(
@@ -160,34 +167,16 @@ function yse_cascades_tokens($type, array $tokens, array $data, array $options, 
   } //current-page
 
 
-  if ($type == 'node') {
-
-    $node = $data['node'] ?? \Drupal::routeMatch()->getParameter('node');
-
-    if(!empty($node)){
-      if ($nodely_tokens = $token_service->findWithPrefix($tokens, 'cascades')) {
-          $replacements += $token_service->generate(
-            'cascades',
-            $nodely_tokens,
-            ['node' => $node],
-            $options,
-            $bubbleable_metadata
-          );
-        }
-    }
-  }//node
 
 
   if ($type == 'cascades') {
+
 
     $ind = array_keys($data);
     $akind = implode('|', $ind);
 
     $int = array_keys($tokens);
     $akint = implode('|', $int);
-
-
-
 
     $node = $data['node'] ?? \Drupal::routeMatch()->getParameter('node');
 
@@ -267,6 +256,8 @@ function yse_cascades_tokens($type, array $tokens, array $data, array $options, 
 
 
   if (!empty($cascades_token_types) && in_array($type, array_keys($cascades_token_types))) {
+
+
     if (!empty($data[$type]['active_link'])) {
       $active_link = $data[$type]['active_link'];
       $active_plugin = $active_link->getPluginId();
@@ -285,6 +276,7 @@ function yse_cascades_tokens($type, array $tokens, array $data, array $options, 
     if (!empty($subs) && !empty($subs[$token_field_name])) {
 
       foreach ($tokens as $name => $original) {
+        //dvm([$name, $original]);
         //find out which flavor is requested and process
         switch ($name) {
           case 'source':
@@ -301,16 +293,9 @@ function yse_cascades_tokens($type, array $tokens, array $data, array $options, 
               $replacements[$original] = $str ?? NULL;
             }
             break;
-          case 'objects':
-            if (!empty($subs[$token_field_name]['value_object'])) {
-              $obj = $subs[$token_field_name]['value_object'];
-             // sending array down to chain for first/join/etc.
-              $replacements[$original] = $obj ?? NULL;
-            }
-            break;
           case 'levelup':
-            if (!empty($subs[$token_field_name]['value_string'])) {
-              $nid = array_values($subs[$token_field_name]['value_string'])[0];
+            if (!empty($subs[$token_field_name]['source_nodes'])) {
+              $nid = array_values($subs[$token_field_name]['source_nodes'])[0];
               $replacements[$original] = $nid ?? NULL;
             }
             break;
@@ -333,8 +318,8 @@ function yse_cascades_tokens($type, array $tokens, array $data, array $options, 
         }
         if ($parents_tokens = \Drupal::token()->findWithPrefix($tokens, 'levelup')) {
           $levelup_link = array_values($subs[$token_field_name]['value_object'])[0];
-          $levelup_nid  = array_values($subs[$token_field_name]['value_string'])[0];
-          $replacements += \Drupal::token()->generate('levelup', $parents_tokens, ['levelup' => $levelup_link, 'nid' => $levelup_nid], $options, $bubbleable_metadata);
+          $levelup_nid = array_values($subs[$token_field_name]['source_nodes'])[0];
+          $replacements += \Drupal::token()->generate('levelup', $parents_tokens, ['lvluplink' => $levelup_link, 'nid' => $levelup_nid, 'mlid' => $levelup_link->getPluginId()], $options, $bubbleable_metadata);
         }
       }
     }
@@ -342,33 +327,40 @@ function yse_cascades_tokens($type, array $tokens, array $data, array $options, 
 
   }//fields
 
-  if ($type == 'levelup'){
+  if ($type == 'levelup') {
+    //$akval = implode(separator: '|', array_values($data));
 
-        if (!empty($data['levelup']) && $contentloader_tokens = $token_service->findWithPrefix($tokens, 'content')) {
-            $replacements += $token_service->generate(
-              'menu_link_content',
-              $contentloader_tokens,
-              ['menu_link_content' => $data['levelup']],
-              $options,
-              $bubbleable_metadata);
-          }
+    if (!empty($data['lvluplink']) && $contentloader_tokens = $token_service->findWithPrefix($tokens, 'content')) {
+      $replacements += $token_service->generate(
+        'menu_link_content',
+        $contentloader_tokens,
+        ['menu_link_content' => $data['lvluplink']],
+        $options,
+        $bubbleable_metadata);
+    }
 
-          if (!empty($data['nid']) && $nodeloader_tokens = $token_service->findWithPrefix($tokens, 'node')) {
-            $levelup_node = NodeLoader::load($data['nid']);
-            $replacements += $token_service->generate(
-              'node',
-              $nodeloader_tokens,
-              ['node' => $levelup_node],
-              $options,
-              $bubbleable_metadata);
-          }
+    if (!empty($data['nid']) && $nodeloader_tokens = $token_service->findWithPrefix($tokens, 'node')) {
+      $levelup_node = NodeLoader::load($data['nid']);
+      $replacements += $token_service->generate(
+        'node',
+        $nodeloader_tokens,
+        ['node' => $levelup_node],
+        $options,
+        $bubbleable_metadata);
+    }
+
+    if (!empty($data['mlid'])) {
+      foreach ($tokens as $name => $original) {
+        if ($name == 'mlid') {
+          $bubbleable_metadata->addCacheableDependency($data['mlid']);
+          $replacements[$original] = $data['mlid'];
+        }
+      }
+    }
+
+
   }//levelup
 
-//TODO
-//with 'content' and 'node' taking place in cascades, we might not need this or we should do only nonBase fields.
-//to do that we need to capture this and maybe not hand over to regular entity mapping.
-//this may require a new type for menu_link_content rather than just a token which means this might need
-//yet another token to hang on like ['extras']['cpntent'] where 'extras' is the type and 'content' always stands for nonBase fields.
   if ($type == 'menu-link' && !empty($data['menu-link']) && \Drupal::moduleHandler()->moduleExists('menu_item_extras')) {
     $link = $data['menu-link'];
     if ($link instanceof MenuLinkContentInterface or $link instanceof Drupal\menu_link_content\Plugin\Menu\MenuLinkContent) {
@@ -397,14 +389,14 @@ function _get_cascades_token_family() {
   if (empty($tokfam)) {
     $tokfam = [];
     foreach (\Drupal::service('token.tree_builder')->buildTree('cascades', ['depth' => 2]) as $branch_token => $fruit) {
-      if (!empty($fruit['type'])){
+      if (!empty($fruit['type'])) {
         $tokfam[$fruit['type']] = [];
-        if (!empty($fruit['children'])){
+        if (!empty($fruit['children'])) {
           foreach ($fruit['children'] as $shoot) {
-            if (!empty($shoot) && isset($shoot['token'])){
-              $e = explode(':', $shoot['token'] );
+            if (!empty($shoot) && isset($shoot['token'])) {
+              $e = explode(':', $shoot['token']);
               $n = isset($e) ? end($e) : NULL;
-              if(!empty($n)){
+              if (!empty($n)) {
                 $tokfam[$fruit['type']][$n] = 1;
               }
             }
@@ -416,10 +408,10 @@ function _get_cascades_token_family() {
   return $tokfam;
 }
 
-function _swapout_stepself($active_link){
-    $step_shorty = (!empty($active_link->get('field_path_shortcode')->getString())) ? $active_link->get('field_path_shortcode')->getString() : $active_link->getTitle();
-    $step_out = (!empty($step_shorty)) ? \Drupal::service('pathauto.alias_cleaner')->cleanstring($step_shorty) : NULL;
-    return $step_out;
+function _swapout_stepself($active_link) {
+  $step_shorty = (!empty($active_link->get('field_path_shortcode')->getString())) ? $active_link->get('field_path_shortcode')->getString() : $active_link->getTitle();
+  $step_out = (!empty($step_shorty)) ? \Drupal::service('pathauto.alias_cleaner')->cleanstring($step_shorty) : NULL;
+  return $step_out;
 }
 
 function _assemble_stepparents_array($active_link, $active_trail = NULL, $fieldname = NULL) {
@@ -449,9 +441,9 @@ function _assemble_stepparents_array($active_link, $active_trail = NULL, $fieldn
     }
   }
 
-  if($levelup_result && !empty($levelup_result['value_object'])){
+  if ($levelup_result && !empty($levelup_result['value_object'])) {
     $levelup_plugin = array_key_first($levelup_result['value_object']);
-    $levelup_link   = $levelup_result['value_object'][$levelup_plugin];
+    $levelup_link = $levelup_result['value_object'][$levelup_plugin];
   }
 
 
@@ -460,7 +452,7 @@ function _assemble_stepparents_array($active_link, $active_trail = NULL, $fieldn
   //we want to stop progressing up the steps if we encounter a levelup node
   //if we encounter a levelup, we need to get the prefix and the shortcode from that node link content
   $steps_result = \Drupal::service('yse_cascades.tree_utils')->climb_and_gather($active_trail, 'swapout', 'field_path_shortcode');
-  if (!empty($steps_result) && !empty($steps_result['value_string'])){
+  if (!empty($steps_result) && !empty($steps_result['value_string'])) {
 
     $steps = $steps_result['value_string'];
   }

@@ -195,6 +195,7 @@ class TreeUtils {
         $result_value = $menu_xtra->get($field_name)->getValue();
         $result_nid = $menu_link->getRouteParameters()['node'];
         $result_link = ($technique == 'levelup') ? $menu_xtra : NULL;
+        //$result_link = ($technique == 'levelup') ? $menu_xtra->getUrlObject()->toString() : NULL;
         //$result_node = ($technique == 'levelup') ? $this->entityTypeManager->getStorage('node')->load($result_nid) : NULL;
         //keep looping for collect and catalog, end loop for onestop and levelup.
         //adding plugin_id bc token arrays are built from assoc inputs.

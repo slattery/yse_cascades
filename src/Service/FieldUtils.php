@@ -163,6 +163,7 @@ class FieldUtils {
         ->setDescription(t('This exclusive flag governs which menu link item loads in a nodeform.'))
         ->setDisplayOptions('view', [
           'label' => 'hidden',
+          'region' => 'hidden',
           'type' => 'boolean',
           'weight' => 0,
         ])
@@ -504,20 +505,20 @@ class FieldUtils {
       return;
     }
 
-    $plugin_id  = $menu_link->getPluginId();
-    if (!empty($plugin_id)){
+    $plugin_id = $menu_link->getPluginId();
+    if (!empty($plugin_id)) {
       $menusteps = $this->menuLinkManager->getParentIds($plugin_id);
       $harvest_results = $this->treeUtils->harvest_menu_link_content_extras($plugin_id, $menusteps);
       $extrarows = [];
-      if (!empty($harvest_results)){
-        foreach( $harvest_results as $fieldkey => $result){
+      if (!empty($harvest_results)) {
+        foreach ($harvest_results as $fieldkey => $result) {
           $rowdata = $resultmarkup = [];
           //TODO config this array
           foreach (['catalog', 'collect', 'levelup', 'feature'] as $technique) {
-            if (str_starts_with($fieldkey, "field_{$technique}")){
+            if (str_starts_with($fieldkey, "field_{$technique}")) {
               if (!empty($result['source_nodes']) && is_array($result['source_nodes']) && count($result['source_nodes']) > 0) {
                 $kv = array_combine($result['source_nodes'], $result['value_string']);
-                foreach ($kv as $k => $v){
+                foreach ($kv as $k => $v) {
                   $resultmarkup[] = "<a href='/node/{$k}' target='_xtra' class='xtramarkup'>{$v}</a>";
                 }
                 $rowdata = [
@@ -535,7 +536,8 @@ class FieldUtils {
         }
         return $extrarows;
       }
-    } else {
+    }
+    else {
       return;
     }
   }

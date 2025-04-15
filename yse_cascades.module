@@ -51,7 +51,7 @@ function yse_cascades_entity_base_field_info($entity_type) {
 
   $c = get_class($entity_type);
   $i = $entity_type->get('id');
-  if ($i == 'menu_link_content' ){
+  if ($i == 'menu_link_content') {
     if ($c == 'Drupal\Core\Entity\ContentEntityType') {
       //will drupal notice?
       $entity_type = \Drupal::service('entity_type.manager')->getDefinition($i);
@@ -78,7 +78,7 @@ function yse_cascades_entity_extra_field_info() {
 function yse_cascades_form_node_form_alter(&$form, Drupal\Core\Form\FormState $form_state, $form_id) {
   $form_object = $form_state->getFormObject();
   if (!$form_object || !$form_object instanceof ContentEntityForm) {
-      return;
+    return;
   }
   \Drupal::service('yse_cascades.nodeform_utils')->form_node_form_alter($form, $form_state, $form_id);
 }
@@ -88,7 +88,7 @@ function yse_cascades_form_node_form_alter(&$form, Drupal\Core\Form\FormState $f
  * so we recreate much of that here.
  */
 
- /**
+/**
  * Implements hook_node_form_alter().
  */
 function yse_cascades_form_alter(&$form, FormStateInterface $form_state, $form_id) {
@@ -96,7 +96,7 @@ function yse_cascades_form_alter(&$form, FormStateInterface $form_state, $form_i
   $form_object = $form_state->getFormObject();
 
   if (!$form_object || !$form_object instanceof ContentEntityForm) {
-      return;
+    return;
   }
   \Drupal::service('yse_cascades.field_utils')->node_form_alter($form, $form_state, $form_id);
 }
@@ -105,33 +105,33 @@ function yse_cascades_form_alter(&$form, FormStateInterface $form_state, $form_i
 
 function yse_cascades_preprocess_form_element(&$variables) {
   //operate only on menu-extra elements
-  if (isset($variables['element']['#field_parents'])  && count($variables['element']['#field_parents']) > 1 && $variables['element']['#field_parents'][0] == 'menu' &&  $variables['element']['#field_parents'][1] == 'extra'){
+  if (isset($variables['element']['#field_parents']) && count($variables['element']['#field_parents']) > 1 && $variables['element']['#field_parents'][0] == 'menu' && $variables['element']['#field_parents'][1] == 'extra') {
 
-    if (in_array($variables['element']['#type'], ['checkbox','textfield','select'], TRUE)) {
-      if (empty($variables['element']['#name']) && !empty($variables['element']['#attributes']['id']) ){
+    if (in_array($variables['element']['#type'], ['checkbox', 'textfield', 'select'], TRUE)) {
+      if (empty($variables['element']['#name']) && !empty($variables['element']['#attributes']['id'])) {
         $variables['element']['#name'] = $variables['element']['#attributes']['id'];
       }
-      if (isset($variables['element']['#field_prefix']) ){
+      if (isset($variables['element']['#field_prefix'])) {
         $variables['prefix'] = $variables['element']['#field_prefix'];
         $variables['attributes']['class'][] = 'field_prefix__label__menu_extra';
       }
     }
 
     //remove malformed classes
-    if (isset($variables['attributes']['class'])){
-      $variables['attributes']['class'] = array_values(array_filter($variables['attributes']['class'], fn ($m) => !in_array($m, ['js-form-item-','form-item-'])));
+    if (isset($variables['attributes']['class'])) {
+      $variables['attributes']['class'] = array_values(array_filter($variables['attributes']['class'], fn($m) => !in_array($m, ['js-form-item-', 'form-item-'])));
     }
 
-    if (isset($variables['element']['#attributes']['id']) ){
+    if (isset($variables['element']['#attributes']['id'])) {
       $variables['attributes']['class'][] = 'js-form-item-' . $variables['element']['#attributes']['id'];
       $variables['attributes']['class'][] = 'form-item-' . $variables['element']['#attributes']['id'];
     }
 
-    if (!isset($variables['type']) && isset($variables['element']['#type'])){
+    if (!isset($variables['type']) && isset($variables['element']['#type'])) {
       $variables['type'] = $variables['element']['#type'];
     }
 
-    if (!isset($variables['name']) && isset($variables['element']['#name'])){
+    if (!isset($variables['name']) && isset($variables['element']['#name'])) {
       $variables['name'] = $variables['element']['#name'];
     }
 
@@ -153,11 +153,11 @@ function yse_cascades_preprocess_form_element(&$variables) {
 
 function yse_cascades_preprocess_form_element_label(&$variables) {
   //operate only on menu-extra elements
-  if (isset($variables['element']['#id']) && (strpos($variables['element']['#id'], 'edit-menu-extra') === 0)){
-    if (empty($variables['element']['#for']) && !empty($variables['element']['#id']) ){
+  if (isset($variables['element']['#id']) && (strpos($variables['element']['#id'], 'edit-menu-extra') === 0)) {
+    if (empty($variables['element']['#for']) && !empty($variables['element']['#id'])) {
       $variables['attributes']['for'] = $variables['element']['#id'];
     }
-    if (isset($variables['element']['#for']) ){
+    if (isset($variables['element']['#for'])) {
       $variables['attributes']['for'] = $variables['element']['#for'];
     }
   }
@@ -165,8 +165,8 @@ function yse_cascades_preprocess_form_element_label(&$variables) {
 
 function yse_cascades_preprocess_input(&$variables) {
   //operate only on menu-extra elements
-  if (isset($variables['element']['#field_parents'])  && count($variables['element']['#field_parents']) > 1 && $variables['element']['#field_parents'][0] == 'menu' &&  $variables['element']['#field_parents'][1] == 'extra'){
-    if (in_array($variables['element']['#type'], ['checkbox','textfield'], TRUE)) {
+  if (isset($variables['element']['#field_parents']) && count($variables['element']['#field_parents']) > 1 && $variables['element']['#field_parents'][0] == 'menu' && $variables['element']['#field_parents'][1] == 'extra') {
+    if (in_array($variables['element']['#type'], ['checkbox', 'textfield'], TRUE)) {
       $variables['attributes']['class'][] = 'input' . '__' . $variables['element']['#type'] . '__menu_extra';
     }
   }
@@ -174,36 +174,36 @@ function yse_cascades_preprocess_input(&$variables) {
 
 function yse_cascades_preprocess_select(&$variables) {
   //operate only on menu-extra elements
-  if (isset($variables['element']['#field_parents'])  && count($variables['element']['#field_parents']) > 1 && $variables['element']['#field_parents'][0] == 'menu' &&  $variables['element']['#field_parents'][1] == 'extra'){
-      $variables['attributes']['class'][] = 'select__menu_extra';
+  if (isset($variables['element']['#field_parents']) && count($variables['element']['#field_parents']) > 1 && $variables['element']['#field_parents'][0] == 'menu' && $variables['element']['#field_parents'][1] == 'extra') {
+    $variables['attributes']['class'][] = 'select__menu_extra';
   }
 }
 
 function yse_cascades_preprocess_textarea(&$variables) {
   //operate only on menu-extra elements
-  if (isset($variables['element']['#field_parents'])  && count($variables['element']['#field_parents']) > 1 && $variables['element']['#field_parents'][0] == 'menu' &&  $variables['element']['#field_parents'][1] == 'extra'){
-      $variables['attributes']['class'][] = 'textarea__menu_extra';
+  if (isset($variables['element']['#field_parents']) && count($variables['element']['#field_parents']) > 1 && $variables['element']['#field_parents'][0] == 'menu' && $variables['element']['#field_parents'][1] == 'extra') {
+    $variables['attributes']['class'][] = 'textarea__menu_extra';
   }
 }
 
 
 function yse_cascades_preprocess_container(&$variables) {
 
-  if (!isset($variables['element']['#attributes'])){
-     $variables['element'] += ['#attributes' => []];
+  if (!isset($variables['element']['#attributes'])) {
+    $variables['element'] += ['#attributes' => []];
   }
   //operate only on menu-extra elements
-  if (isset($variables['element']['#parents'])  && count($variables['element']['#parents']) > 1 && $variables['element']['#parents'][0] == 'menu' &&  $variables['element']['#parents'][1] == 'extra'){
+  if (isset($variables['element']['#parents']) && count($variables['element']['#parents']) > 1 && $variables['element']['#parents'][0] == 'menu' && $variables['element']['#parents'][1] == 'extra') {
     $variables['attributes']['class'][] = 'container__menu_extra';
     $variables['attributes']['class'][] = 'js-form-wrapper';
     $variables['attributes']['class'][] = 'form-wrapper';
     // Assign an html ID.
     if (!isset($variables['element']['#attributes']['id'])) {
-      if (isset($variables['element']['#id'])){
+      if (isset($variables['element']['#id'])) {
         $variables['attributes']['id'] = $variables['element']['#id'];
         $variables['attributes']['data-drupal-selector'] = $variables['element']['#id'];
       }
-      elseif (isset($variables['element']['#parents'])){
+      elseif (isset($variables['element']['#parents'])) {
         $parentstr = 'edit-' . str_replace('_', '-', implode('-', $variables['element']['#parents']));
         $variables['attributes']['id'] = $variables['element']['#id'] = $parentstr;
         $variables['attributes']['data-drupal-selector'] = $parentstr;
@@ -219,46 +219,46 @@ function yse_cascades_preprocess_container(&$variables) {
  */
 function yse_cascades_menu_link_content_presave(EntityInterface $entity) {
   /** @var \Drupal\menu_link_content\MenuLinkContentInterface $entity */
-  if ($entity->hasField('primary')){
+  if ($entity->hasField('primary')) {
 
-      $u   = $entity->getUrlObject();
-      $p = ($u && $u->isRouted()) ? $u->getRouteParameters() : null;
-      $nid = (isset($p) && !empty($p['node'])) ? $p['node'] : null;
+    $u = $entity->getUrlObject();
+    $p = ($u && $u->isRouted()) ? $u->getRouteParameters() : NULL;
+    $nid = (isset($p) && !empty($p['node'])) ? $p['node'] : NULL;
 
-      if (!empty($nid)){
-        $checkprimary = \Drupal::entityQuery('menu_link_content')
+    if (!empty($nid)) {
+      $checkprimary = \Drupal::entityQuery('menu_link_content')
         ->accessCheck(FALSE)
         ->condition('link.uri', 'entity:node/' . $nid)
         ->condition('primary', 1);
 
-        if (!empty($entity->id())){
-          $checkprimary->condition('id', $entity->id(), '<>');
-        }
-        $positives = $checkprimary->execute();
-        $tally = count($positives);
+      if (!empty($entity->id())) {
+        $checkprimary->condition('id', $entity->id(), '<>');
       }
+      $positives = $checkprimary->execute();
+      $tally = count($positives);
+    }
 
-      if (isset($tally) && $tally === 0){
-        $entity->set('primary', 1);
-      }
-      elseif ( $entity->{'primary'}->isEmpty || $entity->{'primary'}->getString() == '0' ) {
-        //probably redundant to call set
+    if (isset($tally) && $tally === 0) {
+      $entity->set('primary', 1);
+    }
+    elseif ($entity->{'primary'}->isEmpty || $entity->{'primary'}->getString() == '0') {
+      //probably redundant to call set
+      $entity->set('primary', FALSE);
+    }
+    elseif (isset($tally) && $tally > 0 && $entity->{'primary'}->getString() == '1') {
+      $links = MenuLinkContentBase::loadMultiple($positives);
+      foreach ($links as $link) {
+        //double checking bc the query shouldn't allow this
+        if ($link->id() != $entity->id()) {
           $entity->set('primary', FALSE);
-      }
-      elseif ( isset($tally) && $tally > 0 && $entity->{'primary'}->getString() == '1' ) {
-        $links = MenuLinkContentBase::loadMultiple($positives);
-        foreach ($links as $link){
-          //double checking bc the query shouldn't allow this
-          if ($link->id() != $entity->id()){
-          $entity->set('primary', FALSE);
-            $link->save();
-          }
-          //probably redundant to call set
-          $entity->set('primary', 1);
+          $link->save();
         }
+        //probably redundant to call set
+        $entity->set('primary', 1);
       }
     }
   }
+}
 
 
 /**
@@ -278,7 +278,7 @@ function yse_cascades_module_implements_alter(&$implementations, $hook) {
  */
 function yse_cascades_theme_suggestions_form_element_alter(&$suggestions, $variables) {
   //operate only on menu-extra elements
-  if (isset($variables['element']['#field_parents']) && count($variables['element']['#field_parents']) > 1 && $variables['element']['#field_parents'][0] == 'menu' &&  $variables['element']['#field_parents'][1] == 'extra'){
+  if (isset($variables['element']['#field_parents']) && count($variables['element']['#field_parents']) > 1 && $variables['element']['#field_parents'][0] == 'menu' && $variables['element']['#field_parents'][1] == 'extra') {
     $suggestions[] = $variables['theme_hook_original'] . '__menu_extra';
   }
 }
@@ -286,7 +286,7 @@ function yse_cascades_theme_suggestions_form_element_alter(&$suggestions, $varia
 
 function yse_cascades_theme_suggestions_input_alter(&$suggestions, $variables) {
   //operate only on menu-extra elements
-  if (isset($variables['element']['#field_parents']) && count($variables['element']['#field_parents']) > 1 && $variables['element']['#field_parents'][0] == 'menu' &&  $variables['element']['#field_parents'][1] == 'extra'){
+  if (isset($variables['element']['#field_parents']) && count($variables['element']['#field_parents']) > 1 && $variables['element']['#field_parents'][0] == 'menu' && $variables['element']['#field_parents'][1] == 'extra') {
     $suggestions[] = 'input__' . $variables['element']['#type'] . '__nodeform';
   }
 
@@ -294,8 +294,30 @@ function yse_cascades_theme_suggestions_input_alter(&$suggestions, $variables) {
 
 function yse_cascades_theme_suggestions_select_alter(&$suggestions, $variables) {
   //operate only on menu-extra elements
-  if (isset($variables['element']['#field_parents'])  && count($variables['element']['#field_parents']) > 1 && $variables['element']['#field_parents'][0] == 'menu' &&  $variables['element']['#field_parents'][1] == 'extra'){
+  if (isset($variables['element']['#field_parents']) && count($variables['element']['#field_parents']) > 1 && $variables['element']['#field_parents'][0] == 'menu' && $variables['element']['#field_parents'][1] == 'extra') {
     $suggestions[] = 'select__' . $variables['element']['#type'] . '__menu_extra';
   }
 }
 
+function yse_cascades_update_9002() {
+
+  $definition_update_manager = \Drupal::entityDefinitionUpdateManager();
+  $entity_type_manager = \Drupal::entityTypeManager();
+  $entity_type = $entity_type_manager->getDefinition('menu_link_content');
+  $field_definition = $definition_update_manager->getFieldStorageDefinition('primary', 'menu_link_content');
+
+  // Update the field to be display configurable
+  $new_definition = $field_definition->setDisplayConfigurable('view', FALSE)
+    ->setDisplayOptions('view', [
+      'label' => 'hidden',
+      'region' => 'hidden',
+      'weight' => -5,
+    ]);
+
+  // Update the field definition
+  $definition_update_manager->updateFieldStorageDefinition($new_definition);
+  $entity_type_manager->clearCachedDefinitions();
+  $definition_update_manager->updateEntityType($entity_type);
+
+  return t('Updated the primary field display configuration for menu_link_content entity type.');
+}

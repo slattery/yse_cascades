@@ -1,0 +1,101 @@
+TODO
+  decide to put nodeform viewmode in install or config/install
+  or both?
+  install script means keep in optional
+
+
+This seems NOT to be needed but let's keep it around for a bit.
+
+/**
+ * Implements hook_form_FORM_ID_alter()
+ */
+function yse_cascades_form_node_edit_form_alter(&$form, Drupal\Core\Form\FormState $form_state, $form_id) {
+  \Drupal::service('yse_cascades.nodeform_utils')->form_node_form_alter($form, $form_state, $form_id);
+}
+
+
+// If I could make this load before the theme we could try to be more polite about #attributes being empty.
+
+Check ALL preprocess funcs
+yse_cascades_preprocess_*
+
+function yse_cascades_preprocess_field_multiple_value_form(&$variables) {
+
+  if (isset($variables['element']['#field_parents'])  && count($variables['element']['#field_parents']) > 1 && $variables['element']['#field_parents'][0] == 'menu' &&  $variables['element']['#field_parents'][1] == 'extra'){
+
+    $index        = $variables['element']['#max_delta'];
+    $parentstring = str_replace('_', '-', implode('-', $variables['element']['#parents'])) ?? null;
+    $desc = $variables['element'][0]['#description'] ?? null;
+    $type = $variables['element'][0]['value']['#type'] ?? null;
+
+    if (!array_key_exists('#attributes', $variables['element'])){
+          $variables['element']['#attributes'] = ['data-drupal-selector' => $parentstring ];
+    }
+    if (!isset($variables['third_party_settings'])){
+      $variables['third_party_settings'] = [];
+    }
+
+    $variables['third_party_settings']['parentstring']  = $parentstring;
+    $variables['third_party_settings']['fieldtype']     = $variables['element'][0]['value']['#type'] ?? null;
+
+    if (isset($variables['element'][0]['#description'])){
+      $description_attributes['id'] = 'edit-' . $parentstring . '-0-value';
+      $variables['description']['attributes'] = new Attribute($description_attributes);
+      $variables['description']['content'] = $variables['element'][0]['#description'];
+    }
+
+  }
+}
+
+
+
+  /**
+   * Entity form builder to add the menu information to the node.
+   * depreciated
+   */
+  function yse_cascades_node_builder($entity_type, NodeInterface $entity, &$form, FormStateInterface $form_state, $form_id = NULL) {
+    $entity->menu = $form_state->getValue('menu');
+  }
+  //depreciated
+  private function _unnest_link_content($arr) {
+    if (!empty($arr['extra'])) {
+      $ex_extra = array_map(fn($key) => $key['value'] ?? $key[0]['value'], $arr['extra']);
+      unset($arr['extra']);
+      $outboundarr = array_merge($arr, $ex_extra);
+    }
+    else {
+      $filteredarr = array_filter($arr, "self::_filter_link_content", ARRAY_FILTER_USE_KEY);
+      $outboundarr = array_map(fn($key) => $key['value'] ?? $key[0]['value'] ?? NULL, $filteredarr);
+      //allowing nodeform rather than menu_link_content to shape the array
+      $outboundarr['entity_id'] = $outboundarr['id'] ?? 0;
+      $outboundarr['id'] = $outboundarr['uuid'] ? 'menu_link_content:' . $outboundarr['uuid'] : NULL;
+      $outboundarr['menu_parent'] = $outboundarr['parent'] ? $outboundarr['menu_name'] . ':' . $outboundarr['parent'] : NULL;
+      $outboundarr['bundle'] = $outboundarr['menu_name'] ?? NULL;
+    }
+    return $outboundarr;
+  }
+  //depreciated using the basefields vs extras now
+  private function _filter_link_content($key) {
+    $keepkeys = ['extra', 'id', 'entity_id', 'uuid', 'bundle', 'enabled', 'title', 'description', 'menu_name', 'external', 'parent', 'menu_parent', 'tempstore_key', 'view_mode'];
+    return (in_array($key, $keepkeys) || strpos($key, 'field_') === 0);
+  }
+
+
+
+
+          // this special casing might belong to the nodeform view mode in future
+          //breaking elseif here to make new set
+          // TODO maybe bring this back if we search for _levelup_ fields.
+        //  if ($key == 'field_path_prefix') {
+        //    $form['menu']['link']['extra'][$key]['#states'] =
+        //      ['invisible' => [':input[name="menu[extra][field_menu_levelup][value]"]' => ['checked' => FALSE]]];
+        //  }
+
+            //TODO make this a config item?
+    //if ($key == 'field_path_prefix') {
+    //  $form['menu']['link']['extra'][$key]['#states'] =
+    //    ['invisible' => [':input[name="menu[extra][field_menu_levelup][value]"]' => ['checked' => FALSE]]];
+    //}
+
+    //TODO make a big assumption that if we reuse fields they have the same utility
+    //watch for triggeringElement only?

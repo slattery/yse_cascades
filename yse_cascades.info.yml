@@ -6,6 +6,6 @@ dependencies:
   - menu_entity_index:menu_entity_index
 description: 'Support arbitrary levelups in a hierarchy for nav and data passthrough.'
 name: 'YSE Cascades'
-package: 'YSE Contrib'
+package: 'YSE Custom'
 type: module
-version: v2.0.0
+version: v2.0.5

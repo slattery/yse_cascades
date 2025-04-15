@@ -21,20 +21,22 @@ Please use the 'nodeform' form mode (found in install dir) for your menus until 
 
 ## Token Behaviors
 
-There are currently four behaviors for admin created fields, and naming conventions for fields menus using menu item extras will signal their function in a menu hierarchy.
+There are currently six behaviors for admin created fields. There is a naming convention for fields created using menu_item_extras that will signal their function in a menu hierarchy.
 - onestop
 - catalog
 - collect
 - feature
 - levelup
+- swapout
 
-There are also two special fields to go with 'levelup', field_path_prefix and field_path_shortcode.   There is a special base field called 'primary' which signals that if there are more than one menu item pointing to a given node, the primary is the one that belongs in the nodeform, and is the basis for pathbuilding.
+Behaviors play out in the `yse_cascades.tree_utils` service.
 
-There are three token segments that will return values
+There are also two special fields to go with 'levelup', `field_path_prefix` and `field_path_shortcode`.   There is a special base field called `primary` which signals that if there are more than one menu item pointing to a given node, the primary is the one that belongs in the nodeform, and is the basis for pathbuilding.
+
+There are four token segments that will return values
  - values:  an array of strings, skips empties
- - objects: an array of structures or entities, skips entities
+ - source:  an array of nids
  - levelup: a single nid
- - swapout: an array of strings accepts defaults to avoid skips
 
 ### onestop: boolean field (values)
 
@@ -42,13 +44,11 @@ Fields that have names like field_onestop_* will look for the first positive val
 
 ### catalog: boolean field
 Fields with positive values will have their associated nids added to the array. calling for 'catalog' by itself should give you an comma delimited array.   Calling the 'values' token allows for array features like 'first' and 'join'
-ex: [cascades:field_catalog_nicenodes] //1,2,3
 ex: [cascades:field_catalog_nicenodes:values:join:-] // 1-2-3
 
 ### collect: text field
 
 Fields with positive values will be added to the array.  'values' will return strings, 'objects' will give you the returm of getValue() on the field, which may contain markup, etc.
-ex: [cascades:field_collect_nicenodes] // one,two,four
 ex: [cascades:field_collect_nicenodes:values:first] //one
 
 ### feature: text field
@@ -58,10 +58,15 @@ ex: [cascades:field_feature_basketball:values:first] //spalding
 ### levelup: boolean field
 
 Like onestop, the first positive value in the hierarchy climb will be the array eleeent returned.  'levelup' alone returns the nid associated with the orimary menu item.  There are subsegments for 'content' which gives access to the menu item content from the levelup node's primary menu item, and 'node' which returns values from the associated node itself.
-ex: [cascades:field_levelup_homenode] \\ 6436 (nid)
 ex: [cascades:field_levelup_homenode:values:first] \\ 6436
 ex: [cascades:token_levelup_homenode:levelup:content:title] \\ Menu Link Title
 ex: [cascades:token_levelup_homenode:levelup:node:title] \\ Node Title
+
+### swapout: alias
+
+This is an alias for field_path_shortcode used in a swapout call
+during pathbuilding.
+
 
 ### Pathbuilding
 
