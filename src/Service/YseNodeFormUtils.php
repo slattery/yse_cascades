@@ -151,7 +151,7 @@ class YseNodeFormUtils {
       $outboundarr = array_merge($arr, $ex_extra);
     }
     else {
-      $filteredarr = array_filter($arr, "self::_filter_link_content", ARRAY_FILTER_USE_KEY);
+      $filteredarr = array_filter($arr, [static::class, '_filter_link_content'], ARRAY_FILTER_USE_KEY);
       $outboundarr = array_map(fn($key) => $key['value'] ?? $key[0]['value'] ?? NULL, $filteredarr);
       //allowing nodeform rather than menu_link_content to shape the array
       $outboundarr['entity_id'] = $outboundarr['id'] ?? 0;
