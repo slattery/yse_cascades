@@ -466,7 +466,8 @@ function _assemble_stepparents_array($active_link, $active_trail = NULL, $fieldn
   if (!empty($levelup_link)) {
     //$levelup_entity = \Drupal::service('menu_item_extras.menu_link_tree_handler')->getMenuLinkItemEntity($levelup_link);
     $step_prefix = $levelup_link->get('field_path_prefix')->getString() ?? NULL;
-    $step_shorty = $levelup_link->get('field_path_shortcode')->getString() ?? $levelup_entity->getTitle();
+    //WARNING: local replaced $levelup_entity->getTitle() with NULL.  Changing here but Need to investigate
+    $step_shorty = $levelup_link->get('field_path_shortcode')->getString() ?? NULL;
     $levelup_pair = [];
     if (!empty($step_prefix)) {
       $steps['stepparents_prefix'] = $step_prefix;
