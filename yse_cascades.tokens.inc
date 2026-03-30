@@ -109,6 +109,12 @@ function yse_cascades_token_info() {
     'type' => 'cascades',
   );
 
+  $tokens['node']['cascades'] = [
+    'name' => t('Node cascades'),
+    'description' => t('Cascades hierarchy data for this node; usable in views with rendered entity rows.'),
+    'type' => 'cascades',
+  ];
+
   $types['levelup'] = array(
     'name' => t('levelup'),
     'description' => t('Tokens for arbitrary levelup pages.'),
@@ -166,7 +172,17 @@ function yse_cascades_tokens($type, array $tokens, array $data, array $options, 
 
   } //current-page
 
-
+  if ($type == 'node' && !empty($data['node'])) {
+    if ($cascade_node_tokens = $token_service->findWithPrefix($tokens, 'cascades')) {
+      $replacements += $token_service->generate(
+        'cascades',
+        $cascade_node_tokens,
+        ['node' => $data['node']],
+        $options,
+        $bubbleable_metadata
+      );
+    }
+  } //node
 
 
   if ($type == 'cascades') {
@@ -193,17 +209,10 @@ function yse_cascades_tokens($type, array $tokens, array $data, array $options, 
     if (!empty($active_link) && ($active_link instanceof MenuLinkInterface || $active_link instanceof MenuItemExtrasMenuLinkContent)) {
 
       $active_menu = $active_link->getMenuName();
-      $active_trail = \Drupal::service('menu.active_trail')->getActiveTrailIds($active_menu);
-
-      //we like that activeTrail is caching, but it always returns an empty array member
-      if (!empty($active_trail) && is_array($active_trail)) {
-        unset($active_trail[NULL]);
-      }
-
-      //active trail always returns something, it looks like even if we strip the empty anchor pair with unset
-      //when pathauto uses this, the active trail will never populate in context.
-      //use 'menu.active_trail' and menu mgr for web render based replacements so we get the cache
-      //use 'plugin.manager.menu.link' for pathauto because context and it is hopefully rare.
+      // Use plugin.manager.menu.link for context-independent trail resolution.
+      // This works correctly for both single-node pages and view-rendered entities,
+      // unlike menu.active_trail which returns the trail for the current request URL.
+      $active_trail = \Drupal::service('plugin.manager.menu.link')->getParentIds($active_link->getPluginId());
 
 
       if (isset($active_link)) {
@@ -219,11 +228,6 @@ function yse_cascades_tokens($type, array $tokens, array $data, array $options, 
             );
           }
         }
-
-        //reset active_trail for pathauto replacements
-        $active_trail = \Drupal::service('plugin.manager.menu.link')->getParentIds($active_link->getPluginId());
-
-
 
         foreach ($tokens as $name => $original) {
           switch ($name) {
