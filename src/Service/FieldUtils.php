@@ -184,22 +184,22 @@ class FieldUtils {
 
   // @see presave
   function installMenuLinkContentAddPrimaryField() {
-
+    $schema = \Drupal::database()->schema();
     $entity_type = $this->entityTypeManager->getDefinition('menu_link_content');
 
     //see if we have this already
-    $defs = $this->entityFieldManager->getFieldStorageDefinitions('menu_link_content');
+    $storage_definition = $this->entityFieldManager->getFieldStorageDefinitions('menu_link_content')['primary'];
 
-    if (empty($defs['primary'])) {
+    if (empty($storage_definition)) {
+      $storage_definition = getPrimaryFieldDefinition();
+    }
 
-      $definition = getPrimaryFieldDefinition();
-
-      $this->entityDefinitionUpdateManager->installFieldStorageDefinition('primary', $entity_type->id(), 'menu_link_content', $definition);
-      $stored_def = $this->entityDefinitionUpdateManager->getFieldStorageDefinition('primary', $entity_type->id());
-      $this->entityDefinitionUpdateManager->updateFieldStorageDefinition($stored_def);
+    if ($schema->fieldExists('menu_link_content_data', 'primary')) {
+      // no op
+    } else {
+      $this->entityDefinitionUpdateManager->installFieldStorageDefinition('primary', $entity_type->id(), 'yse_cascades', $storage_definition);
+      $this->entityFieldManager->clearCachedFieldDefinitions();
       $this->entityTypeManager->clearCachedDefinitions();
-      $this->entityDefinitionUpdateManager->updateEntityType($entity_type);
-
     }
     //then call updb and trigger update
   }
@@ -211,10 +211,9 @@ class FieldUtils {
     //takes care of this for new items that do not have any other refs to the same node
     //NOTE:  this does mean if there are multiple links with the same node, all but one need to have primary 'off'
     //look for views to help with this
-    $entity_type = $this->entityTypeManager->getDefinition('menu_link_content');
-    $stored_def = $this->entityDefinitionUpdateManager->getFieldStorageDefinition('primary', $entity_type->id());
+    $schema = \Drupal::database()->schema();
 
-    if ($stored_def) {
+    if ($schema->fieldExists('menu_link_content_data', 'primary')) {
       $menus = $this->entityTypeManager
         ->getStorage('menu')
         ->loadMultiple();

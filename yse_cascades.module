@@ -226,14 +226,17 @@ function yse_cascades_menu_link_content_presave(EntityInterface $entity) {
     $nid = (isset($p) && !empty($p['node'])) ? $p['node'] : NULL;
 
     if (!empty($nid)) {
+      //check for other menu items that link to the same node for competing primary
       $checkprimary = \Drupal::entityQuery('menu_link_content')
         ->accessCheck(FALSE)
         ->condition('link.uri', 'entity:node/' . $nid)
         ->condition('primary', 1);
 
       if (!empty($entity->id())) {
+        //would we ever have an empty id?  $entity->isNew()?
         $checkprimary->condition('id', $entity->id(), '<>');
       }
+      // I'd like to know what these are, this may be where the loop is
       $positives = $checkprimary->execute();
       $tally = count($positives);
     }
@@ -241,20 +244,17 @@ function yse_cascades_menu_link_content_presave(EntityInterface $entity) {
     if (isset($tally) && $tally === 0) {
       $entity->set('primary', 1);
     }
-    elseif ($entity->{'primary'}->isEmpty || $entity->{'primary'}->getString() == '0') {
-      //probably redundant to call set
-      $entity->set('primary', FALSE);
-    }
     elseif (isset($tally) && $tally > 0 && $entity->{'primary'}->getString() == '1') {
+      //check other links to same target and set primary to false. 
+      //TODO add messaging
       $links = MenuLinkContentBase::loadMultiple($positives);
       foreach ($links as $link) {
         //double checking bc the query shouldn't allow this
-        if ($link->id() != $entity->id()) {
+        if (!empty($entity->id()) && ($entity->id() != $link->id())) {
           $entity->set('primary', FALSE);
-          $link->save();
+          //lets just see if the save is the issue here.  Should send a message instead?
+          //$link->save();
         }
-        //probably redundant to call set
-        $entity->set('primary', 1);
       }
     }
   }
@@ -299,25 +299,31 @@ function yse_cascades_theme_suggestions_select_alter(&$suggestions, $variables) 
   }
 }
 
-function yse_cascades_update_9002() {
+function yse_cascades_update_9005() {
+  $schema = \Drupal::database()->schema();
+  $manager = \Drupal::entityDefinitionUpdateManager();
 
-  $definition_update_manager = \Drupal::entityDefinitionUpdateManager();
-  $entity_type_manager = \Drupal::entityTypeManager();
-  $entity_type = $entity_type_manager->getDefinition('menu_link_content');
-  $field_definition = $definition_update_manager->getFieldStorageDefinition('primary', 'menu_link_content');
-
-  // Update the field to be display configurable
-  $new_definition = $field_definition->setDisplayConfigurable('view', FALSE)
-    ->setDisplayOptions('view', [
-      'label' => 'hidden',
-      'region' => 'hidden',
-      'weight' => -5,
-    ]);
-
-  // Update the field definition
-  $definition_update_manager->updateFieldStorageDefinition($new_definition);
-  $entity_type_manager->clearCachedDefinitions();
-  $definition_update_manager->updateEntityType($entity_type);
-
-  return t('Updated the primary field display configuration for menu_link_content entity type.');
-}
+    if ($schema->fieldExists('menu_link_content_data', 'primary')) {
+        //could just note it and run a post_update_NAME hook
+        return t('menu_link_content_data.primary field exists');
+    } else {
+      // Pull the declared definition if exists
+      $storage_definition = \Drupal::service('entity_field.manager')
+          ->getFieldStorageDefinitions('menu_link_content')['primary'];
+      
+      if(empty($storage_definition)){
+        $storage_definition = \Drupal::service('yse_cascades.field_utils')->getPrimaryFieldDefinition();
+        if(empty($storage_definition)){
+          return t('service not returning definition.');
+        } 
+      }
+      //calling yse_cascades services install fails here but manual install works.
+      //so initial primary population might end up in post_update php file
+      $manager->installFieldStorageDefinition('primary', 'menu_link_content', 'yse_cascades', $storage_definition);
+      if ($schema->fieldExists('menu_link_content_data', 'primary')) {
+        return t('menu_link_content_data.primary field created');
+      } else {
+        return t('menu_link_content_data.primary field FAILED');
+      }
+    }
+  }
