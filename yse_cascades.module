@@ -226,6 +226,7 @@ function yse_cascades_menu_link_content_presave(EntityInterface $entity) {
     $nid = (isset($p) && !empty($p['node'])) ? $p['node'] : NULL;
 
     if (!empty($nid)) {
+      \Drupal::logger('yse_cascades')->info('Checking menu link for @nid', ['@nid' => $nid,]);
       //check for other menu items that link to the same node for competing primary
       $checkprimary = \Drupal::entityQuery('menu_link_content')
         ->accessCheck(FALSE)
@@ -239,9 +240,14 @@ function yse_cascades_menu_link_content_presave(EntityInterface $entity) {
       // I'd like to know what these are, this may be where the loop is
       $positives = $checkprimary->execute();
       $tally = count($positives);
+      \Drupal::logger('yse_cascades')->info('Checking menu link: nid @nid count is @tally', ['@nid' => $nid, '@tally' => $tally]);
+
+    } else {
+      \Drupal::logger('yse_cascades')->info('Checking menu link but no nid');
     }
 
-    if (isset($tally) && $tally === 0) {
+    if (isset($tally) && $tally === 0 && $entity->{'primary'}->getString() == '0') {
+      \Drupal::logger('yse_cascades')->info('Checking menu link: nid @nid setting default primary', ['@nid' => $nid,]);
       $entity->set('primary', 1);
     }
     elseif (isset($tally) && $tally > 0 && $entity->{'primary'}->getString() == '1') {
@@ -249,11 +255,10 @@ function yse_cascades_menu_link_content_presave(EntityInterface $entity) {
       //TODO add messaging
       $links = MenuLinkContentBase::loadMultiple($positives);
       foreach ($links as $link) {
+        \Drupal::logger('yse_cascades')->info('Checking menu link: nid @nid has primary at @link', ['@nid' => $nid, '@link' => $link->id(),]);
         //double checking bc the query shouldn't allow this
         if (!empty($entity->id()) && ($entity->id() != $link->id())) {
           $entity->set('primary', FALSE);
-          //lets just see if the save is the issue here.  Should send a message instead?
-          //$link->save();
         }
       }
     }
